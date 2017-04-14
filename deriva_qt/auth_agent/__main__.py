@@ -18,6 +18,7 @@ def main():
         args = cli.parse_cli()
         authWindow = AuthWindow(args.config_file, args.credential_file)
         authWindow.show()
+        authWindow.login()
         ret = app.exec_()
         return ret
     except Exception as e:
