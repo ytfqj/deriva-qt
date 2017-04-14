@@ -16,10 +16,16 @@ setup(
     maintainer_email='misd-support@isi.edu',
     version="0.1.0",
     packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+            'deriva-auth = deriva_qt.auth_agent.__main__:main'
+        ]
+    },
     requires=[
         'os',
         'sys',
         'logging',
+        'requests',
         'PyQt5'],
     license='GNU GPL 3.0',
     classifiers=[
@@ -30,7 +36,6 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5'
