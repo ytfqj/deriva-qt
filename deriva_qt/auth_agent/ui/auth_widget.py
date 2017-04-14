@@ -88,11 +88,13 @@ class AuthWidget(QWebEngineView):
                             HTTPAdapter(max_retries=retries))
 
     def login(self):
+        self.setHtml(DEFAULT_HTML)
         logging.info("Authenticating with host: %s" % self.auth_url.toString())
         QApplication.setOverrideCursor(Qt.WaitCursor)
         self.auth_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/preauth"))
 
     def logout(self):
+        logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
         self._session.delete(self.auth_url.toString() + "/authn/session")
         self.cookieStore.deleteAllCookies()
@@ -173,7 +175,6 @@ class AuthWidget(QWebEngineView):
             logging.debug("%s cookie removed:\n\n%s\n\n" % (self.authn_cookie_name, cookie_str))
 
     def quitEvent(self):
-        logging.info("Logging out of host: %s" % self.auth_url.toString())
         self.logout()
 
 
