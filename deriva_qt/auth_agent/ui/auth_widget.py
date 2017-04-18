@@ -100,6 +100,7 @@ class AuthWidget(QWebEngineView):
         self._timer.stop()
         self._session.delete(self.auth_url.toString() + "/authn/session")
         self.cookieStore.deleteAllCookies()
+        self.auth_session_page.profile().cookieStore().deleteAllCookies()
         self.authenticated = False
 
     def setSuccessCallback(self, callback=None):
