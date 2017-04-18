@@ -47,15 +47,12 @@ class AuthWidget(QWebEngineView):
 
     def __init__(self, config_file=DEFAULT_CONFIG_FILE, credential_file=DEFAULT_CREDENTIAL_FILE):
         super(AuthWidget, self).__init__()
-        self.page().profile().setPersistentCookiesPolicy(QWebEngineProfile.NoPersistentCookies)
-        self.cookieStore = self.page().profile().cookieStore()
         self.loadProgress.connect(self.onLoadProgress)
         self.loadFinished.connect(self.onLoadFinished)
-        self.cookieStore.cookieAdded.connect(self.onCookieAdded)
-        self.cookieStore.cookieRemoved.connect(self.onCookieRemoved)
+        self.page().profile().cookieStore().cookieAdded.connect(self.onCookieAdded)
+        self.page().profile().cookieStore().cookieRemoved.connect(self.onCookieRemoved)
 
         self.auth_session_page = QWebEnginePage(self)
-        self.auth_session_page.profile().setPersistentCookiesPolicy(QWebEngineProfile.NoPersistentCookies)
         self.auth_session_page.loadFinished.connect(self.onAuthLoadFinished)
 
         self._timer.timeout.connect(self.onTimerFired)
@@ -99,8 +96,10 @@ class AuthWidget(QWebEngineView):
         logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
         self._session.delete(self.auth_url.toString() + "/authn/session")
-        self.cookieStore.deleteAllCookies()
+        self.page().profile().cookieStore().deleteAllCookies()
+        self.page().profile().clearHttpCache()
         self.auth_session_page.profile().cookieStore().deleteAllCookies()
+        self.auth_session_page.profile().clearHttpCache()
         self.authenticated = False
 
     def setSuccessCallback(self, callback=None):
