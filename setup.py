@@ -26,6 +26,7 @@ setup(
         'sys',
         'logging',
         'requests',
+        'deriva_io',
         'PyQt5'],
     license='GNU GPL 3.0',
     classifiers=[
