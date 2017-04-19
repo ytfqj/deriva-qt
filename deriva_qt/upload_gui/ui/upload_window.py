@@ -14,14 +14,17 @@ class MainWindow(QMainWindow):
     uploader = None
     credential = None
     identity = None
+    server = None
     current_path = None
     progress_update_signal = pyqtSignal(str)
     
     def __init__(self, uploader, config_path=None, credential_path=None, window_title=None):
         super(MainWindow, self).__init__()
         self.uploader = uploader
+        self.server = uploader.config["server"]["host"]
         self.ui = MainWindowUI(self)
         if window_title:
+            self.ui.title = window_title
             self.setWindowTitle(window_title)
         self.ui.browseButton.clicked.connect(self.on_actionBrowse_triggered)
         self.configure(config_path)
@@ -154,6 +157,8 @@ class MainWindow(QMainWindow):
         qApp.restoreOverrideCursor()
         if success:
             self.identity = result["client"]["id"]
+            display_name = result["client"]["full_name"]
+            self.setWindowTitle("%s (%s - %s)" % (self.windowTitle(), self.server, display_name))
             if self.current_path:
                 self.ui.actionUpload.setEnabled(True)
         else:
@@ -227,6 +232,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def on_actionLogout_triggered(self):
+        self.setWindowTitle(self.ui.title)
         self.authWindow.logout()
         self.identity = None
         self.ui.actionUpload.setEnabled(False)
@@ -244,12 +250,14 @@ class MainWindow(QMainWindow):
 # noinspection PyArgumentList
 class MainWindowUI(object):
 
+    title = "DERIVA File Uploader"
+
     def __init__(self, MainWin):
         super(MainWindow).__init__()
 
         # Main Window
         MainWin.setObjectName("MainWindow")
-        MainWin.setWindowTitle(MainWin.tr("DERIVA File Uploader"))
+        MainWin.setWindowTitle(MainWin.tr(self.title))
         # MainWin.setWindowIcon(QIcon(":/images/bag.png"))
         MainWin.resize(640, 600)
         self.centralWidget = QWidget(MainWin)
