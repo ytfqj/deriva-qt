@@ -51,6 +51,7 @@ class AuthWidget(QWebEngineView):
         self.loadFinished.connect(self.onLoadFinished)
         self.page().profile().cookieStore().cookieAdded.connect(self.onCookieAdded)
         self.page().profile().cookieStore().cookieRemoved.connect(self.onCookieRemoved)
+        self.page().profile().cookieStore().deleteAllCookies()
 
         self.auth_session_page = QWebEnginePage(self)
         self.auth_session_page.loadFinished.connect(self.onAuthLoadFinished)
