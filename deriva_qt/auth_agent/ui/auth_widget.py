@@ -7,7 +7,7 @@ from requests.packages.urllib3.util.retry import Retry
 from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtWidgets import qApp
 from PyQt5.QtNetwork import QNetworkCookie
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from deriva_common import read_config, read_credential, write_credential, format_exception, \
      DEFAULT_SESSION_CONFIG, DEFAULT_CONFIG_FILE, DEFAULT_CREDENTIAL, DEFAULT_CREDENTIAL_FILE
 
@@ -100,6 +100,8 @@ class AuthWidget(QWebEngineView):
         self.page().profile().clearHttpCache()
         self.auth_session_page.profile().cookieStore().deleteAllCookies()
         self.auth_session_page.profile().clearHttpCache()
+        globus_logout = QWebEnginePage(self)
+        globus_logout.setUrl(QUrl("https://www.globusid.org/logout"))
         self.authenticated = False
 
     def setSuccessCallback(self, callback=None):
