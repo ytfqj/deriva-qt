@@ -93,6 +93,7 @@ class AuthWidget(QWebEngineView):
         self.auth_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/preauth"))
 
     def logout(self):
+        qApp.setOverrideCursor(Qt.WaitCursor)
         logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
         self._session.delete(self.auth_url.toString() + "/authn/session")
@@ -101,8 +102,9 @@ class AuthWidget(QWebEngineView):
         self.auth_session_page.profile().cookieStore().deleteAllCookies()
         self.auth_session_page.profile().clearHttpCache()
         globus_logout = QWebEnginePage(self)
+        globus_logout.loadFinished.connect(self.onGlobusLogoutFinished)
         globus_logout.setUrl(QUrl("https://www.globusid.org/logout"))
-        self.authenticated = False
+        self.waitForLogoutCompleted()
 
     def setSuccessCallback(self, callback=None):
         self._success_callback = callback
@@ -122,6 +124,16 @@ class AuthWidget(QWebEngineView):
             return
         if self.auth_session_page.url().path() == "/authn/preauth":
             self.auth_session_page.toPlainText(self.onPreAuthContent)
+
+    def onGlobusLogoutFinished(self, result):
+        self.authenticated = False
+
+    def waitForLogoutCompleted(self):
+        while True:
+            qApp.processEvents()
+            if not self.authenticated:
+                qApp.restoreOverrideCursor()
+                break
 
     def onSessionContent(self, content):
         try:
@@ -180,9 +192,3 @@ class AuthWidget(QWebEngineView):
 
     def quitEvent(self):
         self.logout()
-
-
-
-
-
-
