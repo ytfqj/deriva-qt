@@ -32,6 +32,7 @@ class MainWindow(QMainWindow):
         self.getSession()
         if not self.identity or not self.current_path:
             self.ui.actionUpload.setEnabled(False)
+            self.ui.actionLogout.setEnabled(False)
             # self.on_actionLogin_triggered()
 
     def configure(self, config_path):
@@ -58,8 +59,8 @@ class MainWindow(QMainWindow):
 
     def enableControls(self):
         self.ui.actionUpload.setEnabled(True)
-        self.ui.actionLogin.setEnabled(True)
-        self.ui.actionLogout.setEnabled(True)
+        self.ui.actionLogin.setEnabled(not self.authWindow.authenticated())
+        self.ui.actionLogout.setEnabled(self.authWindow.authenticated())
         self.ui.actionExit.setEnabled(True)
         self.ui.uploadList.setEnabled(True)
         self.ui.browseButton.setEnabled(True)
@@ -73,12 +74,12 @@ class MainWindow(QMainWindow):
         self.ui.browseButton.setEnabled(False)
 
     def closeEvent(self, event=None):
+        self.disableControls()
         self.cancelTasks()
         if event:
             event.accept()
 
     def cancelTasks(self):
-        self.disableControls()
         async_task.Request.shutdown()
         self.statusBar().showMessage("Waiting for background tasks to terminate...")
 
@@ -87,13 +88,19 @@ class MainWindow(QMainWindow):
             if QThreadPool.globalInstance().waitForDone(10):
                 break
 
-        self.enableControls()
         self.statusBar().showMessage("All background tasks terminated successfully")
 
     def uploadCallback(self, **kwargs):
-        status = kwargs.get("progress")
-        if not status:
-            status = kwargs.get("summary")
+        completed = kwargs.get("completed")
+        total = kwargs.get("total")
+        file_path = kwargs.get("file_path")
+        if completed and total:
+            file_path = " [%s]" % os.path.basename(file_path) if file_path else ""
+            status = "Uploading file%s: %d%% complete" % (file_path, round(((completed / total) % 100) * 100))
+        else:
+            summary = kwargs.get("summary", "")
+            file_path = "Uploaded file: [%s]" % os.path.basename(file_path) if file_path else ""
+            status = file_path + summary
         if status:
             self.progress_update_signal.emit(status)
         return True
@@ -102,7 +109,7 @@ class MainWindow(QMainWindow):
         keys = ["State",
                 "File",
                 "Status"]
-        hidden = []
+        hidden = ["State"]
         self.ui.uploadList.setRowCount(len(upload_list))
         self.ui.uploadList.setColumnCount(len(keys))
 
@@ -112,7 +119,9 @@ class MainWindow(QMainWindow):
             for key in keys:
                 item = QTableWidgetItem()
                 value = row.get(key)
-                item.setText(str(value) or "")
+                text = str(value) or ""
+                item.setText(text)
+                item.setToolTip(text)
                 self.ui.uploadList.setItem(rows, cols, item)
                 if key in hidden:
                     self.ui.uploadList.hideColumn(cols)
@@ -123,7 +132,6 @@ class MainWindow(QMainWindow):
         self.ui.uploadList.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)  # set alignment
         self.ui.uploadList.resizeColumnToContents(0)
         self.ui.uploadList.resizeColumnToContents(1)
-        self.ui.uploadList.resizeColumnToContents(2)
         if (self.ui.uploadList.rowCount() > 0) and self.identity:
             self.ui.actionUpload.setEnabled(True)
         else:
@@ -161,6 +169,8 @@ class MainWindow(QMainWindow):
             self.setWindowTitle("%s (%s - %s)" % (self.windowTitle(), self.server, display_name))
             if self.current_path:
                 self.ui.actionUpload.setEnabled(True)
+            self.ui.actionLogout.setEnabled(True)
+            self.ui.actionLogin.setEnabled(False)
         else:
             self.updateStatus(status, detail)
 
@@ -200,9 +210,10 @@ class MainWindow(QMainWindow):
         qApp.setOverrideCursor(Qt.WaitCursor)
         self.resetUI("Uploading...")
         self.disableControls()
+        self.progress_update_signal.connect(self.updateProgress)
         uploadTask = UploadFilesTask(self.uploader)
         uploadTask.status_update_signal.connect(self.onUploadResult)
-        uploadTask.upload(self.current_path)
+        uploadTask.upload(self.current_path, file_callback=self.uploadCallback)
 
     @pyqtSlot(bool, str, str, object)
     def onUploadResult(self, success, status, detail, result):
@@ -236,6 +247,8 @@ class MainWindow(QMainWindow):
         self.authWindow.logout()
         self.identity = None
         self.ui.actionUpload.setEnabled(False)
+        self.ui.actionLogout.setEnabled(False)
+        self.ui.actionLogin.setEnabled(True)
 
     @pyqtSlot()
     def on_actionHelp_triggered(self):
