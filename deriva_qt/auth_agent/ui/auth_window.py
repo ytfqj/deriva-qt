@@ -6,26 +6,36 @@ from .auth_widget import AuthWidget
 
 class AuthWindow(QMainWindow):
 
+    config_file = None
+    credential_file = None
     is_child_window = False
+    is_persistent = False
     authentication_success_callback = None
 
     def __init__(self,
                  config_file=DEFAULT_CONFIG_FILE,
                  credential_file=DEFAULT_CREDENTIAL_FILE,
                  authentication_success_callback=None,
-                 is_child_window=False):
+                 is_child_window=False,
+                 is_persistent=False):
         super(AuthWindow, self).__init__()
+        self.config_file = config_file
+        self.credential_file = credential_file
         self.is_child_window = is_child_window
+        self.is_persistent = is_persistent
         self.authentication_success_callback = \
             self.successCallback if not authentication_success_callback else authentication_success_callback
-        if not self.is_child_window and credential_file is None:
-            credential_file = DEFAULT_CREDENTIAL_FILE
-        self.ui = AuthWindowUI(self, config_file, credential_file)
+        if not self.is_child_window and self.credential_file is None:
+            self.credential_file = DEFAULT_CREDENTIAL_FILE
+        self.ui = AuthWindowUI(self)
         if not is_child_window:
             self.systemTrayIcon = QSystemTrayIcon(self)
             self.systemTrayIcon.setIcon(qApp.style().standardIcon(QStyle.SP_TitleBarMenuButton))
             self.systemTrayIcon.setVisible(True)
             self.systemTrayIcon.activated.connect(self.on_systemTrayIcon_activated)
+
+    def authenticated(self):
+        return self.ui.authWidget.authenticated
 
     def login(self):
         self.ui.authWidget.login()
@@ -70,7 +80,7 @@ class AuthWindow(QMainWindow):
             msg.setWindowTitle("Confirm Action")
             msg.setText("Are you sure you wish to exit?")
             msg.setDetailedText("If you close the application, your credentials will not be automatically refreshed "
-                                "and will become invalid once the current credential's expiration time is reached.")
+                                "and will be invalidated once the credential expiration time is reached.")
             msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             ret = msg.exec_()
             if ret == QMessageBox.No:
@@ -79,7 +89,7 @@ class AuthWindow(QMainWindow):
 
 class AuthWindowUI(object):
 
-    def __init__(self, MainWin, config_file, credential_file):
+    def __init__(self, MainWin):
         super(AuthWindow).__init__()
 
         # Main Window
@@ -94,7 +104,7 @@ class AuthWindowUI(object):
         self.verticalLayout.setContentsMargins(11, 11, 11, 11)
         self.verticalLayout.setSpacing(6)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.authWidget = AuthWidget(config_file, credential_file)
+        self.authWidget = AuthWidget(MainWin.config_file, MainWin.credential_file, MainWin.is_persistent)
         self.authWidget.setSuccessCallback(MainWin.authentication_success_callback)
         self.authWidget.setObjectName("authWidget")
         self.verticalLayout.addWidget(self.authWidget)

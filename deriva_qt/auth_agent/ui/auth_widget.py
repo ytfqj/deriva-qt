@@ -7,7 +7,7 @@ from requests.packages.urllib3.util.retry import Retry
 from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtWidgets import qApp
 from PyQt5.QtNetwork import QNetworkCookie
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
 from deriva_common import read_config, read_credential, write_credential, format_exception, \
      DEFAULT_SESSION_CONFIG, DEFAULT_CONFIG_FILE, DEFAULT_CREDENTIAL, DEFAULT_CREDENTIAL_FILE
 
@@ -39,23 +39,17 @@ class AuthWidget(QWebEngineView):
     credential_file = None
     auth_url = None
     authn_session = {}
+    authn_session_page = None
     authn_cookie_name = None
     authenticated = False
+    persistent = False
     _success_callback = None
     _session = requests.session()
     _timer = QTimer()
 
-    def __init__(self, config_file=DEFAULT_CONFIG_FILE, credential_file=DEFAULT_CREDENTIAL_FILE):
+    def __init__(self, config_file=DEFAULT_CONFIG_FILE, credential_file=DEFAULT_CREDENTIAL_FILE, persistent=False):
         super(AuthWidget, self).__init__()
-        self.loadProgress.connect(self.onLoadProgress)
-        self.loadFinished.connect(self.onLoadFinished)
-        self.page().profile().cookieStore().cookieAdded.connect(self.onCookieAdded)
-        self.page().profile().cookieStore().cookieRemoved.connect(self.onCookieRemoved)
-        self.page().profile().cookieStore().deleteAllCookies()
-
-        self.auth_session_page = QWebEnginePage(self)
-        self.auth_session_page.loadFinished.connect(self.onAuthLoadFinished)
-
+        self.persistent = persistent
         self._timer.timeout.connect(self.onTimerFired)
         qApp.aboutToQuit.connect(self.quitEvent)
 
@@ -88,24 +82,27 @@ class AuthWidget(QWebEngineView):
                             HTTPAdapter(max_retries=retries))
 
     def login(self):
-        self.setHtml(DEFAULT_HTML)
         logging.info("Authenticating with host: %s" % self.auth_url.toString())
         qApp.setOverrideCursor(Qt.WaitCursor)
-        self.auth_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/preauth"))
+        if self.authn_session_page:
+            self.authn_session_page.loadProgress.disconnect(self.onLoadProgress)
+            self.authn_session_page.loadFinished.disconnect(self.onLoadFinished)
+        self.setHtml(DEFAULT_HTML)
+        self.authn_session_page = \
+            QWebEnginePage(QWebEngineProfile(self), self) if not self.persistent else QWebEnginePage(self)
+        self.authn_session_page.loadProgress.connect(self.onLoadProgress)
+        self.authn_session_page.loadFinished.connect(self.onLoadFinished)
+        self.authn_session_page.profile().cookieStore().cookieAdded.connect(self.onCookieAdded)
+        self.authn_session_page.profile().cookieStore().cookieRemoved.connect(self.onCookieRemoved)
+        self.authn_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/preauth"))
 
     def logout(self):
-        qApp.setOverrideCursor(Qt.WaitCursor)
         logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
         self._session.delete(self.auth_url.toString() + "/authn/session")
-        self.page().profile().cookieStore().deleteAllCookies()
-        self.page().profile().clearHttpCache()
-        self.auth_session_page.profile().cookieStore().deleteAllCookies()
-        self.auth_session_page.profile().clearHttpCache()
-        globus_logout = QWebEnginePage(self)
-        globus_logout.loadFinished.connect(self.onGlobusLogoutFinished)
-        globus_logout.setUrl(QUrl("https://www.globusid.org/logout"))
-        self.waitForLogoutCompleted()
+        if not self.persistent:
+            self.page().profile().cookieStore().deleteAllCookies()
+            self.page().profile().clearHttpCache()
 
     def setSuccessCallback(self, callback=None):
         self._success_callback = callback
@@ -118,26 +115,9 @@ class AuthWidget(QWebEngineView):
         resp = self._session.put(self.auth_url.toString() + "/authn/session")
         logging.debug("webauthn session:\n%s\n", resp.json())
 
-    def onAuthLoadFinished(self, result):
-        qApp.restoreOverrideCursor()
-        if not result:
-            self.setPage(self.auth_session_page)
-            return
-        if self.auth_session_page.url().path() == "/authn/preauth":
-            self.auth_session_page.toPlainText(self.onPreAuthContent)
-
-    def onGlobusLogoutFinished(self, result):
-        self.authenticated = False
-
-    def waitForLogoutCompleted(self):
-        while True:
-            qApp.processEvents()
-            if not self.authenticated:
-                qApp.restoreOverrideCursor()
-                break
-
     def onSessionContent(self, content):
         try:
+            self.setHtml(SUCCESS_HTML)
             self.authn_session = json.loads(content)
             seconds_remaining = self.authn_session['seconds_remaining']
             if not self._timer.isActive():
@@ -146,7 +126,6 @@ class AuthWidget(QWebEngineView):
                              (seconds_remaining / 2))
                 self._timer.start(refresh)
             logging.debug("webauthn session:\n%s\n", json.dumps(self.authn_session, indent=2))
-            self.setHtml(SUCCESS_HTML)
             if self._success_callback:
                 self._success_callback(credential=self.credential)
         except (ValueError, Exception) as e:
@@ -155,18 +134,27 @@ class AuthWidget(QWebEngineView):
 
     def onPreAuthContent(self, content):
         try:
+            if not content:
+                logging.debug("no preauth content")
+                return
             preauth = json.loads(content)
             logging.debug("webauthn preauth:\n%s\n", json.dumps(preauth, indent=2))
             qApp.setOverrideCursor(Qt.WaitCursor)
-            self.setUrl(QUrl(preauth["redirect_url"]))
+            self.authn_session_page.setUrl(QUrl(preauth["redirect_url"]))
         except (ValueError, Exception) as e:
             logging.error(format_exception(e))
             self.setHtml(ERROR_HTML % content)
 
     def onLoadFinished(self, result):
         qApp.restoreOverrideCursor()
-        if self.url().path() == "/authn/session":
-            self.page().toPlainText(self.onSessionContent)
+        if not result:
+            return
+        if self.authn_session_page.url().path() == "/authn/preauth":
+            self.authn_session_page.toPlainText(self.onPreAuthContent)
+        elif self.authn_session_page.url().path() == "/authn/session":
+            self.authn_session_page.toPlainText(self.onSessionContent)
+        else:
+            self.setPage(self.authn_session_page)
 
     def onLoadProgress(self, progress):
         self.setStatus("Loading page: %s [%d%%]" % (self.url().host(), progress))
@@ -183,7 +171,7 @@ class AuthWidget(QWebEngineView):
                 write_credential(self.credential_file, self.credential)
             self._session.cookies.set(self.authn_cookie_name, cookie_val, domain=self.auth_url.host(), path='/')
             qApp.setOverrideCursor(Qt.WaitCursor)
-            self.auth_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/session"))
+            self.authn_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/session"))
 
     def onCookieRemoved(self, cookie):
         cookie_str = str(cookie.toRawForm(QNetworkCookie.NameAndValueOnly), encoding='utf-8')
