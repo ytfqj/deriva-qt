@@ -99,8 +99,8 @@ class MainWindow(QMainWindow):
             status = "Uploading file%s: %d%% complete" % (file_path, round(((completed / total) % 100) * 100))
         else:
             summary = kwargs.get("summary", "")
-            file_path = "Uploaded file: [%s]" % os.path.basename(file_path) if file_path else ""
-            status = file_path + summary
+            file_path = "Uploaded file: [%s] " % os.path.basename(file_path) if file_path else ""
+            status = file_path  # + summary
         if status:
             self.progress_update_signal.emit(status)
         return True
