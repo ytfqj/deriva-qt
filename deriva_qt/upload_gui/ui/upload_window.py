@@ -1,6 +1,6 @@
 import os
 import logging
-from PyQt5.QtCore import Qt, QCoreApplication, QMetaObject, QThreadPool, QModelIndex, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import Qt, QCoreApplication, QMetaObject, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import qApp, QMainWindow, QWidget, QAction, QSizePolicy, QPushButton, QStyle, QSplitter, QLabel, \
      QToolBar, QStatusBar, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QAbstractItemView, QLineEdit, QFileDialog
 from PyQt5.QtGui import QIcon
@@ -121,7 +121,7 @@ class MainWindow(QMainWindow):
                 value = row.get(key)
                 text = str(value) or ""
                 item.setText(text)
-                item.setToolTip(text)
+                item.setToolTip("<span>" + text + "</span>")
                 self.ui.uploadList.setItem(rows, cols, item)
                 if key in hidden:
                     self.ui.uploadList.hideColumn(cols)
@@ -136,6 +136,13 @@ class MainWindow(QMainWindow):
             self.ui.actionUpload.setEnabled(True)
         else:
             self.ui.actionUpload.setEnabled(False)
+
+    def scanDirectory(self):
+        self.uploader.cleanup()
+        self.disableControls()
+        scanTask = ScanDirectoryTask(self.uploader)
+        scanTask.status_update_signal.connect(self.onScanResult)
+        scanTask.scan(self.current_path)
 
     @pyqtSlot()
     def taskTriggered(self):
@@ -167,10 +174,10 @@ class MainWindow(QMainWindow):
             self.identity = result["client"]["id"]
             display_name = result["client"]["full_name"]
             self.setWindowTitle("%s (%s - %s)" % (self.windowTitle(), self.server, display_name))
-            if self.current_path:
-                self.ui.actionUpload.setEnabled(True)
             self.ui.actionLogout.setEnabled(True)
             self.ui.actionLogin.setEnabled(False)
+            if self.current_path:
+                self.ui.actionUpload.setEnabled(True)
         else:
             self.updateStatus(status, detail)
 
@@ -185,13 +192,8 @@ class MainWindow(QMainWindow):
             return
         else:
             self.current_path = path
-
-        self.uploader.cleanup()
         self.ui.pathTextBox.setText(os.path.normpath(self.current_path))
-        self.disableControls()
-        scanTask = ScanDirectoryTask(self.uploader)
-        scanTask.status_update_signal.connect(self.onScanResult)
-        scanTask.scan(self.current_path)
+        self.scanDirectory()
 
     @pyqtSlot(bool, str, str, object)
     def onScanResult(self, success, status, detail, result):
@@ -272,7 +274,7 @@ class MainWindowUI(object):
         MainWin.setObjectName("MainWindow")
         MainWin.setWindowTitle(MainWin.tr(self.title))
         # MainWin.setWindowIcon(QIcon(":/images/bag.png"))
-        MainWin.resize(640, 600)
+        MainWin.resize(800, 600)
         self.centralWidget = QWidget(MainWin)
         self.centralWidget.setObjectName("centralWidget")
         MainWin.setCentralWidget(self.centralWidget)
@@ -285,6 +287,7 @@ class MainWindowUI(object):
         self.pathLabel = QLabel("Directory:")
         self.horizontalLayout.addWidget(self.pathLabel)
         self.pathTextBox = QLineEdit()
+        self.pathTextBox.setReadOnly(True)
         self.horizontalLayout.addWidget(self.pathTextBox)
         self.browseButton = QPushButton("Browse", self.centralWidget)
         self.horizontalLayout.addWidget(self.browseButton)
