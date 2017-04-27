@@ -68,7 +68,7 @@ class AuthWidget(QWebEngineView):
             return
         self.auth_url = QUrl()
         self.auth_url.setScheme(server.get("protocol", "https"))
-        self.auth_url.setHost(server.get("host", "localhost"))
+        self.auth_url.setHost(server.get("host", ""))
         if server.get("port") is not None:
             self.auth_url.setPort(server["port"])
         self.authn_cookie_name = self.config.get("cookie_name", DEFAULT_CONFIG["cookie_name"])
@@ -97,6 +97,8 @@ class AuthWidget(QWebEngineView):
         self.authn_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/preauth"))
 
     def logout(self):
+        if not (self.auth_url.host() and self.auth_url.scheme()):
+            return
         logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
         self._session.delete(self.auth_url.toString() + "/authn/session")
