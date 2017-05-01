@@ -32,8 +32,8 @@ class MainWindow(QMainWindow):
         self.getSession()
         if not self.identity or not self.current_path:
             self.ui.actionUpload.setEnabled(False)
+            self.ui.actionRescan.setEnabled(False)
             self.ui.actionLogout.setEnabled(False)
-            # self.on_actionLogin_triggered()
 
     def configure(self, config_path):
         # configure logging
@@ -59,6 +59,8 @@ class MainWindow(QMainWindow):
 
     def enableControls(self):
         self.ui.actionUpload.setEnabled(True)
+        self.ui.actionRescan.setEnabled(self.current_path is not None)
+        self.ui.actionCancel.setEnabled(False)
         self.ui.actionLogin.setEnabled(not self.authWindow.authenticated())
         self.ui.actionLogout.setEnabled(self.authWindow.authenticated())
         self.ui.actionExit.setEnabled(True)
@@ -67,6 +69,7 @@ class MainWindow(QMainWindow):
 
     def disableControls(self):
         self.ui.actionUpload.setEnabled(False)
+        self.ui.actionRescan.setEnabled(False)
         self.ui.actionLogin.setEnabled(False)
         self.ui.actionLogout.setEnabled(False)
         self.ui.actionExit.setEnabled(False)
@@ -139,7 +142,6 @@ class MainWindow(QMainWindow):
 
     def scanDirectory(self):
         self.uploader.cleanup()
-        self.disableControls()
         scanTask = ScanDirectoryTask(self.uploader)
         scanTask.status_update_signal.connect(self.onScanResult)
         scanTask.scan(self.current_path)
@@ -188,11 +190,15 @@ class MainWindow(QMainWindow):
                                            "Select Directory",
                                            self.current_path,
                                            QFileDialog.ShowDirsOnly)
-        if self.current_path == path:
-            return
-        else:
-            self.current_path = path
+        self.current_path = path
         self.ui.pathTextBox.setText(os.path.normpath(self.current_path))
+        self.scanDirectory()
+
+    @pyqtSlot()
+    def on_actionRescan_triggered(self):
+        if not self.current_path:
+            return
+
         self.scanDirectory()
 
     @pyqtSlot(bool, str, str, object)
@@ -209,9 +215,9 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def on_actionUpload_triggered(self):
         self.disableControls()
+        self.ui.actionCancel.setEnabled(True)
         qApp.setOverrideCursor(Qt.WaitCursor)
-        self.resetUI("Uploading...")
-        self.disableControls()
+        self.updateStatus("Uploading...")
         self.progress_update_signal.connect(self.updateProgress)
         uploadTask = UploadFilesTask(self.uploader)
         uploadTask.status_update_signal.connect(self.onUploadResult)
@@ -349,6 +355,13 @@ class MainWindowUI(object):
         self.actionUpload.setToolTip(MainWin.tr("Upload files"))
         self.actionUpload.setShortcut(MainWin.tr("Ctrl+L"))
 
+        # Rescan
+        self.actionRescan = QAction(MainWin)
+        self.actionRescan.setObjectName("actionRescan")
+        self.actionRescan.setText(MainWin.tr("Rescan"))
+        self.actionRescan.setToolTip(MainWin.tr("Rescan the upload directory"))
+        self.actionRescan.setShortcut(MainWin.tr("Ctrl+R"))
+
         # Cancel
         self.actionCancel = QAction(MainWin)
         self.actionCancel.setObjectName("actionCancel")
@@ -395,9 +408,14 @@ class MainWindowUI(object):
         self.mainToolBar.addAction(self.actionUpload)
         self.actionUpload.setIcon(qApp.style().standardIcon(QStyle.SP_FileDialogToParent))
 
+        # Rescan
+        self.mainToolBar.addAction(self.actionRescan)
+        self.actionRescan.setIcon(qApp.style().standardIcon(QStyle.SP_BrowserReload))
+
         # Cancel
         self.mainToolBar.addAction(self.actionCancel)
         self.actionCancel.setIcon(qApp.style().standardIcon(QStyle.SP_BrowserStop))
+        self.actionCancel.setEnabled(False)
 
         # this spacer right justifies everything that comes after it
         spacer = QWidget()
