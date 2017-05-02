@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         self.getSession()
 
     def enableControls(self):
-        self.ui.actionUpload.setEnabled(True)
+        self.ui.actionUpload.setEnabled(self.canUpload())
         self.ui.actionRescan.setEnabled(self.current_path is not None)
         self.ui.actionCancel.setEnabled(False)
         self.ui.actionLogin.setEnabled(not self.authWindow.authenticated())
@@ -135,21 +135,16 @@ class MainWindow(QMainWindow):
         self.ui.uploadList.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)  # set alignment
         self.ui.uploadList.resizeColumnToContents(0)
         self.ui.uploadList.resizeColumnToContents(1)
-        if (self.ui.uploadList.rowCount() > 0) and self.identity:
-            self.ui.actionUpload.setEnabled(True)
-        else:
-            self.ui.actionUpload.setEnabled(False)
+        self.ui.actionUpload.setEnabled(self.canUpload())
+
+    def canUpload(self):
+        return (self.ui.uploadList.rowCount() > 0) and self.authWindow.authenticated()
 
     def scanDirectory(self):
         self.uploader.cleanup()
         scanTask = ScanDirectoryTask(self.uploader)
         scanTask.status_update_signal.connect(self.onScanResult)
         scanTask.scan(self.current_path)
-
-    @pyqtSlot()
-    def taskTriggered(self):
-        self.ui.logTextBrowser.widget.clear()
-        self.disableControls()
 
     @pyqtSlot(str)
     def updateProgress(self, status):
@@ -206,8 +201,6 @@ class MainWindow(QMainWindow):
         qApp.restoreOverrideCursor()
         if success:
             self.displayUploads(self.uploader.getFileStatusAsArray())
-            if self.ui.uploadList.rowCount() > 0:
-                self.ui.actionUpload.setEnabled(True)
             self.resetUI("Ready...")
         else:
             self.resetUI(status, detail)

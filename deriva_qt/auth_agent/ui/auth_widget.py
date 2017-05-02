@@ -105,6 +105,7 @@ class AuthWidget(QWebEngineView):
         if not self.persistent:
             self.page().profile().cookieStore().deleteAllCookies()
             self.page().profile().clearHttpCache()
+        self.authenticated = False
 
     def setSuccessCallback(self, callback=None):
         self._success_callback = callback
