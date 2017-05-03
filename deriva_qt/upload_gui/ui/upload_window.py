@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
     current_path = None
     progress_update_signal = pyqtSignal(str)
     
-    def __init__(self, uploader, config_path=None, credential_path=None, window_title=None):
+    def __init__(self, uploader, window_title=None, cookie_persistence=True):
         super(MainWindow, self).__init__()
         self.uploader = uploader
         self.server = uploader.config["server"]["host"]
@@ -27,15 +27,14 @@ class MainWindow(QMainWindow):
             self.ui.title = window_title
             self.setWindowTitle(window_title)
         self.ui.browseButton.clicked.connect(self.on_actionBrowse_triggered)
-        self.configure(config_path)
-        self.authWindow = AuthWindow(config_path, credential_path, self.onLoginSuccess, True)
+        self.configure()
+        self.authWindow = AuthWindow(config=uploader.config,
+                                     is_child_window=True,
+                                     cookie_persistence=cookie_persistence,
+                                     authentication_success_callback=self.onLoginSuccess)
         self.getSession()
-        if not self.identity or not self.current_path:
-            self.ui.actionUpload.setEnabled(False)
-            self.ui.actionRescan.setEnabled(False)
-            self.ui.actionLogout.setEnabled(False)
 
-    def configure(self, config_path):
+    def configure(self):
         # configure logging
         self.ui.logTextBrowser.widget.log_update_signal.connect(self.updateLog)
         self.ui.logTextBrowser.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
@@ -347,6 +346,7 @@ class MainWindowUI(object):
         self.actionUpload.setText(MainWin.tr("Upload"))
         self.actionUpload.setToolTip(MainWin.tr("Upload files"))
         self.actionUpload.setShortcut(MainWin.tr("Ctrl+L"))
+        self.actionUpload.setEnabled(False)
 
         # Rescan
         self.actionRescan = QAction(MainWin)
@@ -354,6 +354,7 @@ class MainWindowUI(object):
         self.actionRescan.setText(MainWin.tr("Rescan"))
         self.actionRescan.setToolTip(MainWin.tr("Rescan the upload directory"))
         self.actionRescan.setShortcut(MainWin.tr("Ctrl+R"))
+        self.actionRescan.setEnabled(False)
 
         # Cancel
         self.actionCancel = QAction(MainWin)
@@ -375,6 +376,7 @@ class MainWindowUI(object):
         self.actionLogout.setText(MainWin.tr("Logout"))
         self.actionLogout.setToolTip(MainWin.tr("Logout of the server"))
         self.actionLogout.setShortcut(MainWin.tr("Ctrl+O"))
+        self.actionLogout.setEnabled(False)
 
         # Exit
         self.actionExit = QAction(MainWin)

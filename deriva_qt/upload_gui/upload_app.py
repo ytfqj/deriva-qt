@@ -9,18 +9,22 @@ from deriva_qt.upload_gui.ui import upload_window
 
 
 class DerivaUploadGUI(BaseCLI):
-    def __init__(self, uploader, description, epilog):
+    def __init__(self, uploader, description, epilog, cookie_persistence=True):
         BaseCLI.__init__(self, description, epilog)
         self.uploader = uploader
+        self.cookie_persistence = cookie_persistence
 
     @staticmethod
-    def upload_gui(uploader, config_file=None, credential_file=None, window_title=None):
+    def upload_gui(uploader, config_file=None, credential_file=None, window_title=None, cookie_persistence=True):
         if not issubclass(uploader, DerivaUpload):
             raise ValueError("DerivaUpload subclass required")
 
-        if not (config_file and os.path.isfile(config_file)):
-            config_file = uploader.getDefaultConfigFilePath()
-        config = read_config(config_file, create_default=True, default=uploader.getDefaultConfig())
+        if getattr(sys, 'frozen', False):
+            config = uploader.getDefaultConfig()
+        else:
+            if not (config_file and os.path.isfile(config_file)):
+                config_file = uploader.getDefaultConfigFilePath()
+            config = read_config(config_file, create_default=True, default=uploader.getDefaultConfig())
         credential = read_credential(credential_file, create_default=False) if credential_file else None
 
         try:
@@ -29,9 +33,8 @@ class DerivaUploadGUI(BaseCLI):
             app = QApplication(sys.argv)
             app.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
             window = upload_window.MainWindow(uploader.getInstance(config, credential),
-                                              config_file,
-                                              credential_file,
-                                              window_title)
+                                              window_title=window_title,
+                                              cookie_persistence=cookie_persistence)
             window.show()
             ret = app.exec_()
             return ret
@@ -45,7 +48,8 @@ class DerivaUploadGUI(BaseCLI):
             self.upload_gui(self.uploader,
                             config_file=args.config_file,
                             credential_file=args.credential_file,
-                            window_title=self.parser.description)
+                            window_title=self.parser.description,
+                            cookie_persistence=self.cookie_persistence)
 
         except Exception as e:
             sys.stderr.write(format_exception(e))
