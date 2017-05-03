@@ -42,26 +42,22 @@ class AuthWidget(QWebEngineView):
     authn_session_page = None
     authn_cookie_name = None
     authenticated = False
-    persistent = False
+    cookie_persistence = False
     _success_callback = None
     _session = requests.session()
     _timer = QTimer()
 
-    def __init__(self, config_file=DEFAULT_CONFIG_FILE, credential_file=DEFAULT_CREDENTIAL_FILE, persistent=False):
+    def __init__(self, config=None, credential_file=None, cookie_persistence=False):
         super(AuthWidget, self).__init__()
-        self.persistent = persistent
+        self.cookie_persistence = cookie_persistence
         self._timer.timeout.connect(self.onTimerFired)
         qApp.aboutToQuit.connect(self.quitEvent)
 
-        self.configure(config_file, credential_file)
+        self.configure(config, credential_file)
 
-    def configure(self, config_file, credential_file):
-        if config_file:
-            self.config_file = config_file
-        self.config = read_config(self.config_file, create_default=True, default=DEFAULT_CONFIG)
+    def configure(self, config, credential_file):
+        self.config = config if config else read_config(self.config_file, create_default=True, default=DEFAULT_CONFIG)
         self.credential_file = credential_file
-        if self.credential_file:
-            self.credential = read_credential(self.credential_file, create_default=True)
         server = self.config.get("server")
         if not server:
             self.setHtml(ERROR_HTML % "Could not locate server parameters in configuration file.")
@@ -89,7 +85,7 @@ class AuthWidget(QWebEngineView):
             self.authn_session_page.loadFinished.disconnect(self.onLoadFinished)
         self.setHtml(DEFAULT_HTML)
         self.authn_session_page = \
-            QWebEnginePage(QWebEngineProfile(self), self) if not self.persistent else QWebEnginePage(self)
+            QWebEnginePage(QWebEngineProfile(self), self) if not self.cookie_persistence else QWebEnginePage(self)
         self.authn_session_page.loadProgress.connect(self.onLoadProgress)
         self.authn_session_page.loadFinished.connect(self.onLoadFinished)
         self.authn_session_page.profile().cookieStore().cookieAdded.connect(self.onCookieAdded)
@@ -101,14 +97,18 @@ class AuthWidget(QWebEngineView):
             return
         logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
-        self._session.delete(self.auth_url.toString() + "/authn/session")
-        if not self.persistent:
-            self.page().profile().cookieStore().deleteAllCookies()
-            self.page().profile().clearHttpCache()
+        try:
+            self._session.delete(self.auth_url.toString() + "/authn/session")
+        except Exception as e:
+            logging.warning("Logout error: %s" % format_exception(e))
         self.authenticated = False
 
     def setSuccessCallback(self, callback=None):
         self._success_callback = callback
+
+    def execSuccessCallback(self):
+        if self._success_callback:
+            self._success_callback(credential=self.credential)
 
     def setStatus(self, message):
         if self.window().statusBar is not None:
@@ -129,8 +129,8 @@ class AuthWidget(QWebEngineView):
                              (seconds_remaining / 2))
                 self._timer.start(refresh)
             logging.debug("webauthn session:\n%s\n", json.dumps(self.authn_session, indent=2))
-            if self._success_callback:
-                self._success_callback(credential=self.credential)
+            qApp.restoreOverrideCursor()
+            QTimer.singleShot(100, self.execSuccessCallback)
         except (ValueError, Exception) as e:
             logging.error(format_exception(e))
             self.setHtml(ERROR_HTML % content)

@@ -1,33 +1,27 @@
 from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot
 from PyQt5.QtWidgets import QWidget, QMainWindow, QMessageBox, QStatusBar, QVBoxLayout, QSystemTrayIcon, QStyle, qApp
-from deriva_common import DEFAULT_CONFIG_FILE, DEFAULT_CREDENTIAL_FILE
-from .auth_widget import AuthWidget
+from deriva_common import DEFAULT_CREDENTIAL_FILE
+from deriva_qt.auth_agent.ui.auth_widget import AuthWidget
 
 
 class AuthWindow(QMainWindow):
 
-    config_file = None
-    credential_file = None
     is_child_window = False
-    is_persistent = False
     authentication_success_callback = None
 
     def __init__(self,
-                 config_file=DEFAULT_CONFIG_FILE,
-                 credential_file=DEFAULT_CREDENTIAL_FILE,
-                 authentication_success_callback=None,
+                 config,
+                 credential_file=None,
                  is_child_window=False,
-                 is_persistent=False):
+                 cookie_persistence=False,
+                 authentication_success_callback=None):
         super(AuthWindow, self).__init__()
-        self.config_file = config_file
-        self.credential_file = credential_file
         self.is_child_window = is_child_window
-        self.is_persistent = is_persistent
-        self.authentication_success_callback = \
+        if not self.is_child_window and credential_file is None:
+            credential_file = DEFAULT_CREDENTIAL_FILE
+        success_callback = \
             self.successCallback if not authentication_success_callback else authentication_success_callback
-        if not self.is_child_window and self.credential_file is None:
-            self.credential_file = DEFAULT_CREDENTIAL_FILE
-        self.ui = AuthWindowUI(self)
+        self.ui = AuthWindowUI(self, config, credential_file, cookie_persistence, success_callback)
         if not is_child_window:
             self.systemTrayIcon = QSystemTrayIcon(self)
             self.systemTrayIcon.setIcon(qApp.style().standardIcon(QStyle.SP_TitleBarMenuButton))
@@ -89,7 +83,7 @@ class AuthWindow(QMainWindow):
 
 class AuthWindowUI(object):
 
-    def __init__(self, MainWin):
+    def __init__(self, MainWin, config, credential_file, cookie_persistence, success_callback):
         super(AuthWindow).__init__()
 
         # Main Window
@@ -104,8 +98,8 @@ class AuthWindowUI(object):
         self.verticalLayout.setContentsMargins(11, 11, 11, 11)
         self.verticalLayout.setSpacing(6)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.authWidget = AuthWidget(MainWin.config_file, MainWin.credential_file, MainWin.is_persistent)
-        self.authWidget.setSuccessCallback(MainWin.authentication_success_callback)
+        self.authWidget = AuthWidget(config, credential_file, cookie_persistence)
+        self.authWidget.setSuccessCallback(success_callback)
         self.authWidget.setObjectName("authWidget")
         self.verticalLayout.addWidget(self.authWidget)
 
