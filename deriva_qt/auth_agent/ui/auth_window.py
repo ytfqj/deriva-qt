@@ -84,7 +84,6 @@ class AuthWindow(QMainWindow):
 class AuthWindowUI(object):
 
     def __init__(self, MainWin, config, credential_file, cookie_persistence, success_callback):
-        super(AuthWindow).__init__()
 
         # Main Window
         MainWin.setObjectName("AuthWindow")

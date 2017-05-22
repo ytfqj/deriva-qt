@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QTableWidget
 class TableWidget(QTableWidget):
 
     def __init__(self, parent):
-        super().__init__(parent)
+        super(QTableWidget, self).__init__(parent)
 
     def getCurrentTableRow(self):
         row = self.currentRow()

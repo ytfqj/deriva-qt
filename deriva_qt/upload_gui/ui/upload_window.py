@@ -266,7 +266,6 @@ class MainWindowUI(object):
     title = "DERIVA File Uploader"
 
     def __init__(self, MainWin):
-        super(MainWindow).__init__()
 
         # Main Window
         MainWin.setObjectName("MainWindow")

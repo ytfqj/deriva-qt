@@ -7,7 +7,7 @@ import logging
 class QPlainTextEditLogger(logging.Handler):
 
     def __init__(self, parent):
-        super().__init__()
+        logging.Handler.__init__(self)
         self.widget = QPlainTextEditLog(parent)
 
     def emit(self, record):
@@ -20,6 +20,6 @@ class QPlainTextEditLog(QPlainTextEdit):
     log_update_signal = pyqtSignal(str)
 
     def __init__(self, parent):
-        super().__init__(parent)
+        super(QPlainTextEdit, self).__init__(parent)
         self.setReadOnly(True)
         self.setBackgroundVisible(True)
