@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QStyleFactory
 from deriva_common import read_config, read_credential, format_exception
@@ -15,17 +16,24 @@ class DerivaUploadGUI(BaseCLI):
         self.cookie_persistence = cookie_persistence
 
     @staticmethod
-    def upload_gui(uploader, config_file=None, credential_file=None, window_title=None, cookie_persistence=True):
-        if not issubclass(uploader, DerivaUpload):
-            raise ValueError("DerivaUpload subclass required")
+    def upload_gui(uploader,
+                   config_file=None,
+                   credential_file=None,
+                   hostname=None,
+                   window_title=None,
+                   cookie_persistence=True):
 
-        if getattr(sys, 'frozen', False):
-            config = uploader.getDefaultConfig()
-        else:
+        if not issubclass(uploader, DerivaUpload):
+            raise TypeError("DerivaUpload subclass required")
+
+        if not (config_file and os.path.isfile(config_file)):
+            config_file = uploader.getDeployedConfigFilePath()
             if not (config_file and os.path.isfile(config_file)):
-                config_file = uploader.getDefaultConfigFilePath()
-            config = read_config(config_file, create_default=True, default=uploader.getDefaultConfig())
-        credential = read_credential(credential_file, create_default=False) if credential_file else None
+                shutil.copy2(uploader.getDefaultConfigFilePath(), config_file)
+        config = read_config(config_file)
+        if hostname:
+            config['server']['host'] = hostname
+        credential = read_credential(credential_file) if credential_file else None
 
         try:
             QApplication.setDesktopSettingsAware(False)
@@ -48,6 +56,7 @@ class DerivaUploadGUI(BaseCLI):
             self.upload_gui(self.uploader,
                             config_file=args.config_file,
                             credential_file=args.credential_file,
+                            hostname=args.host,
                             window_title=self.parser.description,
                             cookie_persistence=self.cookie_persistence)
 

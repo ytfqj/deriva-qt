@@ -36,6 +36,31 @@ class SessionQueryTask(UploadTask):
                                      self.error_callback)
 
 
+class ConfigUpdateTask(UploadTask):
+    status_update_signal = pyqtSignal(bool, str, str, object)
+
+    def __init__(self, parent=None):
+        super(ConfigUpdateTask, self).__init__(parent)
+
+    def success_callback(self, rid, result):
+        if rid != self.rid:
+            return
+        self.status_update_signal.emit(True, "Configuration update success", "", "")
+
+    def error_callback(self, rid, error):
+        if rid != self.rid:
+            return
+        self.status_update_signal.emit(False, "Configuration update failure", format_exception(error), None)
+
+    def update_config(self):
+        self.init_request()
+        self.request = async_execute(self.uploader.getUpdatedConfig,
+                                     [],
+                                     self.rid,
+                                     self.success_callback,
+                                     self.error_callback)
+
+
 class ScanDirectoryTask(UploadTask):
     status_update_signal = pyqtSignal(bool, str, str, object)
 

@@ -12,7 +12,6 @@ from deriva_qt.upload_gui.impl.upload_tasks import *
 # noinspection PyArgumentList
 class MainWindow(QMainWindow):
     uploader = None
-    credential = None
     identity = None
     server = None
     current_path = None
@@ -50,10 +49,7 @@ class MainWindow(QMainWindow):
 
     def onLoginSuccess(self, **kwargs):
         self.authWindow.hide()
-        self.credential = kwargs["credential"]
-        server = self.uploader.config["server"]["host"]
-        self.uploader.catalog.set_credentials(self.credential, server)
-        self.uploader.store.set_credentials(self.credential, server)
+        self.uploader.setCredentials(kwargs["credential"])
         self.getSession()
 
     def enableControls(self):
@@ -139,6 +135,12 @@ class MainWindow(QMainWindow):
     def canUpload(self):
         return (self.ui.uploadList.rowCount() > 0) and self.authWindow.authenticated()
 
+    def updateConfig(self):
+        qApp.setOverrideCursor(Qt.WaitCursor)
+        configUpdateTask = ConfigUpdateTask(self.uploader)
+        configUpdateTask.status_update_signal.connect(self.onUpdateConfigResult)
+        configUpdateTask.update_config()
+
     def scanDirectory(self):
         self.uploader.cleanup()
         scanTask = ScanDirectoryTask(self.uploader)
@@ -174,8 +176,17 @@ class MainWindow(QMainWindow):
             self.ui.actionLogin.setEnabled(False)
             if self.current_path:
                 self.ui.actionUpload.setEnabled(True)
+            self.updateConfig()
         else:
             self.updateStatus(status, detail)
+
+    @pyqtSlot(bool, str, str, object)
+    def onUpdateConfigResult(self, success, status, detail, result):
+        qApp.restoreOverrideCursor()
+        if success:
+            self.resetUI("Ready...")
+        else:
+            self.resetUI(status, detail)
 
     @pyqtSlot()
     def on_actionBrowse_triggered(self):
