@@ -2,7 +2,8 @@ import os
 import logging
 from PyQt5.QtCore import Qt, QCoreApplication, QMetaObject, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import qApp, QMainWindow, QWidget, QAction, QSizePolicy, QPushButton, QStyle, QSplitter, QLabel, \
-     QToolBar, QStatusBar, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QAbstractItemView, QLineEdit, QFileDialog
+    QToolBar, QStatusBar, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QAbstractItemView, QLineEdit, QFileDialog, \
+    QMessageBox
 from PyQt5.QtGui import QIcon
 from deriva_qt.common import log_widget, table_widget, async_task
 from deriva_qt.auth_agent.ui.auth_window import AuthWindow
@@ -15,6 +16,8 @@ class MainWindow(QMainWindow):
     identity = None
     server = None
     current_path = None
+    uploading = False
+    save_progress_on_cancel = False
     progress_update_signal = pyqtSignal(str)
     
     def __init__(self, uploader, window_title=None, cookie_persistence=True):
@@ -73,11 +76,15 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event=None):
         self.disableControls()
-        self.cancelTasks()
+        if self.uploading:
+            self.cancelTasks(self.cancelConfirmation())
         if event:
             event.accept()
 
-    def cancelTasks(self):
+    def cancelTasks(self, save_progress):
+        qApp.setOverrideCursor(Qt.WaitCursor)
+        self.save_progress_on_cancel = save_progress
+        self.uploader.cancel()
         async_task.Request.shutdown()
         self.statusBar().showMessage("Waiting for background tasks to terminate...")
 
@@ -86,21 +93,35 @@ class MainWindow(QMainWindow):
             if QThreadPool.globalInstance().waitForDone(10):
                 break
 
+        self.uploading = False
         self.statusBar().showMessage("All background tasks terminated successfully")
+        qApp.restoreOverrideCursor()
 
     def uploadCallback(self, **kwargs):
         completed = kwargs.get("completed")
         total = kwargs.get("total")
         file_path = kwargs.get("file_path")
+        file_name = os.path.basename(file_path) if file_path else ""
+        job_info = kwargs.get("job_info", {})
+        job_info.update()
         if completed and total:
-            file_path = " [%s]" % os.path.basename(file_path) if file_path else ""
-            status = "Uploading file%s: %d%% complete" % (file_path, round(((completed / total) % 100) * 100))
+            file_name = " [%s]" % file_name
+            job_info.update({"completed": completed, "total": total, "host": kwargs.get("host")})
+            status = "Uploading file%s: %d%% complete" % (file_name, round(((completed / total) % 100) * 100))
+            self.uploader.setTransferState(file_path, job_info)
         else:
             summary = kwargs.get("summary", "")
-            file_path = "Uploaded file: [%s] " % os.path.basename(file_path) if file_path else ""
-            status = file_path  # + summary
+            file_name = "Uploaded file: [%s] " % file_name
+            status = file_name  # + summary
         if status:
             self.progress_update_signal.emit(status)
+
+        if self.uploader.cancelled:
+            if self.save_progress_on_cancel:
+                return -1
+            else:
+                return False
+
         return True
 
     def displayUploads(self, upload_list):
@@ -219,7 +240,9 @@ class MainWindow(QMainWindow):
     def on_actionUpload_triggered(self):
         self.disableControls()
         self.ui.actionCancel.setEnabled(True)
+        self.save_progress_on_cancel = False
         qApp.setOverrideCursor(Qt.WaitCursor)
+        self.uploading = True
         self.updateStatus("Uploading...")
         self.progress_update_signal.connect(self.updateProgress)
         uploadTask = UploadFilesTask(self.uploader)
@@ -229,6 +252,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot(bool, str, str, object)
     def onUploadResult(self, success, status, detail, result):
         qApp.restoreOverrideCursor()
+        self.uploading = False
         self.displayUploads(self.uploader.getFileStatusAsArray())
         if success:
             self.resetUI("Ready.")
@@ -237,15 +261,10 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def on_actionCancel_triggered(self):
-        pass
-
-    @pyqtSlot(bool, str, str, object)
-    def onCancelResult(self, success, status, detail, result):
+        self.cancelTasks(self.cancelConfirmation())
         qApp.restoreOverrideCursor()
-        if success:
-            self.resetUI("Ready.")
-        else:
-            self.resetUI(status, detail)
+        self.displayUploads(self.uploader.getFileStatusAsArray())
+        self.resetUI("Ready.")
 
     @pyqtSlot()
     def on_actionLogin_triggered(self):
@@ -269,6 +288,22 @@ class MainWindow(QMainWindow):
     def on_actionExit_triggered(self):
         self.closeEvent()
         QCoreApplication.quit()
+
+    @staticmethod
+    def cancelConfirmation():
+        qApp.restoreOverrideCursor()
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Confirm Action")
+        msg.setText("Save progress for the current upload?")
+        msg.setInformativeText("Selecting \"Yes\" will attempt to resume this transfer from the point where it was "
+                               "cancelled.\n\nSelecting \"No\" will require the transfer to be started over from the "
+                               "beginning of file.")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        ret = msg.exec_()
+        if ret == QMessageBox.Yes:
+            return True
+        return False
 
 
 # noinspection PyArgumentList
