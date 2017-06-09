@@ -128,8 +128,8 @@ class MainWindow(QMainWindow):
 
     def displayUploads(self, upload_list):
         keys = ["State",
-                "File",
-                "Status"]
+                "Status",
+                "File"]
         hidden = ["State"]
         self.ui.uploadList.setRowCount(len(upload_list))
         self.ui.uploadList.setColumnCount(len(keys))
@@ -152,7 +152,6 @@ class MainWindow(QMainWindow):
         self.ui.uploadList.setHorizontalHeaderLabels(keys)  # add header names
         self.ui.uploadList.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)  # set alignment
         self.ui.uploadList.resizeColumnToContents(0)
-        self.ui.uploadList.resizeColumnToContents(1)
         self.ui.actionUpload.setEnabled(self.canUpload())
 
     def canUpload(self):
@@ -360,7 +359,6 @@ class MainWindowUI(object):
         self.uploadList.setSelectionMode(QAbstractItemView.NoSelection)
         self.uploadList.verticalHeader().setDefaultSectionSize(18)  # tighten up the row size
         self.uploadList.horizontalHeader().setStretchLastSection(True)
-        # self.uploadList.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.uploadList.setSortingEnabled(True)  # allow sorting
         self.splitter.addWidget(self.uploadList)
 
