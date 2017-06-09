@@ -62,7 +62,6 @@ class MainWindow(QMainWindow):
         self.ui.actionLogin.setEnabled(not self.authWindow.authenticated())
         self.ui.actionLogout.setEnabled(self.authWindow.authenticated())
         self.ui.actionExit.setEnabled(True)
-        self.ui.uploadList.setEnabled(True)
         self.ui.browseButton.setEnabled(True)
 
     def disableControls(self):
@@ -71,7 +70,6 @@ class MainWindow(QMainWindow):
         self.ui.actionLogin.setEnabled(False)
         self.ui.actionLogout.setEnabled(False)
         self.ui.actionExit.setEnabled(False)
-        self.ui.uploadList.setEnabled(False)
         self.ui.browseButton.setEnabled(False)
 
     def closeEvent(self, event=None):
@@ -124,6 +122,10 @@ class MainWindow(QMainWindow):
 
         return True
 
+    def statusCallback(self, **kwargs):
+        status = kwargs.get("status")
+        self.progress_update_signal.emit(status)
+
     def displayUploads(self, upload_list):
         keys = ["State",
                 "File",
@@ -170,7 +172,10 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str)
     def updateProgress(self, status):
-        self.statusBar().showMessage(status)
+        if status:
+            self.statusBar().showMessage(status)
+        else:
+            self.displayUploads(self.uploader.getFileStatusAsArray())
 
     @pyqtSlot(str, str)
     def updateStatus(self, status, detail=None):
@@ -247,7 +252,7 @@ class MainWindow(QMainWindow):
         self.progress_update_signal.connect(self.updateProgress)
         uploadTask = UploadFilesTask(self.uploader)
         uploadTask.status_update_signal.connect(self.onUploadResult)
-        uploadTask.upload(self.current_path, file_callback=self.uploadCallback)
+        uploadTask.upload(status_callback=self.statusCallback, file_callback=self.uploadCallback)
 
     @pyqtSlot(bool, str, str, object)
     def onUploadResult(self, success, status, detail, result):
@@ -352,7 +357,7 @@ class MainWindowUI(object):
         self.uploadList.setEditTriggers(QAbstractItemView.NoEditTriggers)  # use NoEditTriggers to disable editing
         self.uploadList.setAlternatingRowColors(True)
         self.uploadList.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.uploadList.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.uploadList.setSelectionMode(QAbstractItemView.NoSelection)
         self.uploadList.verticalHeader().setDefaultSectionSize(18)  # tighten up the row size
         self.uploadList.horizontalHeader().setStretchLastSection(True)
         # self.uploadList.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
