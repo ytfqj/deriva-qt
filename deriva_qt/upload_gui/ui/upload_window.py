@@ -535,12 +535,12 @@ class MainWindowUI(object):
         self.serverMenu.triggered.connect(MainWin.onServerMenuTriggered)
         ag = QActionGroup(MainWin, exclusive=True)
         servers = MainWin.uploader.getServers()
+        default = MainWin.uploader.getDefaultServer()
         for server in servers:
             menuText = "%s: %s" % (server["desc"], server["host"])
             action = ag.addAction(QAction(menuText, MainWin, checkable=True))
             action.setData(server)
             self.serverMenu.addAction(action)
-            default = MainWin.uploader.getDefaultServer()
             if server == default:
                 action.setChecked(True)
                 self.serverMenu.setTitle(MainWin.tr(menuText))
