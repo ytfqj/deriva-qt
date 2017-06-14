@@ -1,8 +1,8 @@
-import os
 import sys
+import urllib.parse
+import traceback
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QStyleFactory
-from deriva_common import read_config, copy_config, read_credential, format_exception
 from deriva_common.base_cli import BaseCLI
 from deriva_io.deriva_upload import DerivaUpload
 from deriva_qt.upload_gui.ui import upload_window
@@ -25,29 +25,29 @@ class DerivaUploadGUI(BaseCLI):
         if not issubclass(uploader, DerivaUpload):
             raise TypeError("DerivaUpload subclass required")
 
-        if not (config_file and os.path.isfile(config_file)):
-            config_file = uploader.getDeployedConfigFilePath(uploader)
-            if not (config_file and os.path.isfile(config_file)):
-                copy_config(uploader.getDefaultConfigFilePath(uploader), config_file)
-        config = read_config(config_file)
+        server = None
         if hostname:
-            config['server']['host'] = hostname
-        credential = read_credential(credential_file) if credential_file else None
+            server = dict()
+            if hostname.startswith("http"):
+                url = urllib.parse.urlparse(hostname)
+                server["protocol"] = url.scheme
+                server["host"] = url.netloc
+            else:
+                server["protocol"] = "https"
+                server["host"] = hostname
 
-        try:
-            QApplication.setDesktopSettingsAware(False)
-            QApplication.setStyle(QStyleFactory.create("Fusion"))
-            app = QApplication(sys.argv)
-            app.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
-            window = upload_window.MainWindow(uploader.getInstance(config, credential),
-                                              window_title=window_title,
-                                              cookie_persistence=cookie_persistence)
-            del uploader
-            window.show()
-            ret = app.exec_()
-            return ret
-        except Exception as e:
-            print(e)
+        QApplication.setDesktopSettingsAware(False)
+        QApplication.setStyle(QStyleFactory.create("Fusion"))
+        app = QApplication(sys.argv)
+        app.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
+        window = upload_window.MainWindow(uploader(config_file, credential_file, server),
+                                          window_title=window_title,
+                                          cookie_persistence=cookie_persistence)
+        del uploader
+        window.show()
+        ret = app.exec_()
+
+        return ret
 
     def main(self):
         sys.stderr.write("\n")
@@ -60,8 +60,8 @@ class DerivaUploadGUI(BaseCLI):
                             window_title=self.parser.description,
                             cookie_persistence=self.cookie_persistence)
 
-        except Exception as e:
-            sys.stderr.write(format_exception(e))
+        except:
+            traceback.print_exc()
             return 1
         finally:
             sys.stderr.write("\n\n")

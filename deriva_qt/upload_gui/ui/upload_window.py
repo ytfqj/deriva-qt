@@ -1,39 +1,43 @@
 import os
 import logging
+import webbrowser
 from PyQt5.QtCore import Qt, QCoreApplication, QMetaObject, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import qApp, QMainWindow, QWidget, QAction, QSizePolicy, QPushButton, QStyle, QSplitter, QLabel, \
     QToolBar, QStatusBar, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QAbstractItemView, QLineEdit, QFileDialog, \
-    QMessageBox
-from PyQt5.QtGui import QIcon
+    QMessageBox, QMenuBar, QMenu, QActionGroup
+from PyQt5.QtGui import QIcon, QCursor
 from deriva_qt.common import log_widget, table_widget, async_task
 from deriva_qt.auth_agent.ui.auth_window import AuthWindow
+from deriva_qt.upload_gui import resources
 from deriva_qt.upload_gui.impl.upload_tasks import *
 
 
 # noinspection PyArgumentList
 class MainWindow(QMainWindow):
     uploader = None
+    auth_window = None
     identity = None
     server = None
     current_path = None
     uploading = False
+    cookie_persistence = True
     save_progress_on_cancel = False
     progress_update_signal = pyqtSignal(str)
     
     def __init__(self, uploader, window_title=None, cookie_persistence=True):
         super(MainWindow, self).__init__()
         self.uploader = uploader
-        self.server = uploader.config["server"]["host"]
+        self.server = uploader.server["host"]
+        self.cookie_persistence = cookie_persistence
         self.ui = MainWindowUI(self)
         if window_title:
             self.ui.title = window_title
-            self.setWindowTitle(window_title)
+            self.setWindowTitle("%s (%s)" % (self.ui.title, self.server))
         self.ui.browseButton.clicked.connect(self.on_actionBrowse_triggered)
         self.configure()
-        self.authWindow = AuthWindow(config=uploader.config,
-                                     is_child_window=True,
-                                     cookie_persistence=cookie_persistence,
-                                     authentication_success_callback=self.onLoginSuccess)
+        self.getNewAuthWindow()
+        if not self.checkVersion():
+            return
         self.getSession()
 
     def configure(self):
@@ -43,6 +47,15 @@ class MainWindow(QMainWindow):
         logging.getLogger().addHandler(self.ui.logTextBrowser)
         logging.getLogger().setLevel(logging.INFO)
 
+    def getNewAuthWindow(self):
+        if self.auth_window:
+            del self.auth_window
+
+        self.auth_window = AuthWindow(config={"server": self.uploader.server},
+                                      is_child_window=True,
+                                      cookie_persistence=self.cookie_persistence,
+                                      authentication_success_callback=self.onLoginSuccess)
+
     def getSession(self):
         qApp.setOverrideCursor(Qt.WaitCursor)
         self.updateStatus("Validating session.")
@@ -51,20 +64,22 @@ class MainWindow(QMainWindow):
         queryTask.query()
 
     def onLoginSuccess(self, **kwargs):
-        self.authWindow.hide()
+        self.auth_window.hide()
         self.uploader.setCredentials(kwargs["credential"])
         self.getSession()
 
     def enableControls(self):
+        self.ui.actionServer.setEnabled(True)
         self.ui.actionUpload.setEnabled(self.canUpload())
         self.ui.actionRescan.setEnabled(self.current_path is not None)
         self.ui.actionCancel.setEnabled(False)
-        self.ui.actionLogin.setEnabled(not self.authWindow.authenticated())
-        self.ui.actionLogout.setEnabled(self.authWindow.authenticated())
+        self.ui.actionLogin.setEnabled(not self.auth_window.authenticated())
+        self.ui.actionLogout.setEnabled(self.auth_window.authenticated())
         self.ui.actionExit.setEnabled(True)
         self.ui.browseButton.setEnabled(True)
 
     def disableControls(self):
+        self.ui.actionServer.setEnabled(False)
         self.ui.actionUpload.setEnabled(False)
         self.ui.actionRescan.setEnabled(False)
         self.ui.actionLogin.setEnabled(False)
@@ -152,10 +167,37 @@ class MainWindow(QMainWindow):
         self.ui.uploadList.setHorizontalHeaderLabels(keys)  # add header names
         self.ui.uploadList.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)  # set alignment
         self.ui.uploadList.resizeColumnToContents(0)
-        self.ui.actionUpload.setEnabled(self.canUpload())
 
     def canUpload(self):
-        return (self.ui.uploadList.rowCount() > 0) and self.authWindow.authenticated()
+        return (self.ui.uploadList.rowCount() > 0) and self.auth_window.authenticated()
+
+    def checkVersion(self):
+        if not self.uploader.isVersionCompatible():
+            self.updateStatus("Version incompatibility detected", "Current version: [%s], required version(s): %s." % (
+                self.uploader.getVersion(), self.uploader.getVersionCompatibility()))
+            self.disableControls()
+            self.ui.actionServer.setEnabled(True)
+            self.ui.actionExit.setEnabled(True)
+            self.updateConfirmation()
+            return False
+        return True
+
+    def updateConfirmation(self):
+        url = self.uploader.config.get("version_update_url")
+        if not url:
+            return
+        qApp.restoreOverrideCursor()
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowIcon(QIcon(":/images/upload.png"))
+        msg.setWindowTitle("Update Required")
+        msg.setText("Launch browser and download new version?")
+        msg.setInformativeText("Selecting \"Yes\" will launch an external web browser which will take you to a "
+                               "download page where you can get the latest version of this software.")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        ret = msg.exec_()
+        if ret == QMessageBox.Yes:
+            webbrowser.open_new(url)
 
     def updateConfig(self):
         qApp.setOverrideCursor(Qt.WaitCursor)
@@ -164,10 +206,24 @@ class MainWindow(QMainWindow):
         configUpdateTask.update_config()
 
     def scanDirectory(self):
-        self.uploader.cleanup()
+        self.uploader.reset()
         scanTask = ScanDirectoryTask(self.uploader)
         scanTask.status_update_signal.connect(self.onScanResult)
         scanTask.scan(self.current_path)
+
+    @pyqtSlot(QAction)
+    def onServerMenuTriggered(self, action):
+        if not action.isChecked():
+            return
+        server = action.data()
+        if server == self.uploader.server:
+            return
+        self.uploader.setServer(server)
+        self.server = self.uploader.server["host"]
+        if self.auth_window.authenticated():
+            self.on_actionLogout_triggered()
+        self.getNewAuthWindow()
+        self.on_actionLogin_triggered()
 
     @pyqtSlot(str)
     def updateProgress(self, status):
@@ -196,22 +252,23 @@ class MainWindow(QMainWindow):
         if success:
             self.identity = result["client"]["id"]
             display_name = result["client"]["full_name"]
-            self.setWindowTitle("%s (%s - %s)" % (self.windowTitle(), self.server, display_name))
+            self.setWindowTitle("%s (%s - %s)" % (self.ui.title, self.server, display_name))
             self.ui.actionLogout.setEnabled(True)
             self.ui.actionLogin.setEnabled(False)
             if self.current_path:
                 self.ui.actionUpload.setEnabled(True)
             self.updateConfig()
         else:
-            self.updateStatus(status, detail)
+            self.updateStatus("Login required.")
 
     @pyqtSlot(bool, str, str, object)
     def onUpdateConfigResult(self, success, status, detail, result):
         qApp.restoreOverrideCursor()
-        if success:
-            self.resetUI("Ready...")
-        else:
+        if not success:
             self.resetUI(status, detail)
+        if not self.checkVersion():
+            return
+        self.on_actionRescan_triggered()
 
     @pyqtSlot()
     def on_actionBrowse_triggered(self):
@@ -236,12 +293,21 @@ class MainWindow(QMainWindow):
         qApp.restoreOverrideCursor()
         if success:
             self.displayUploads(self.uploader.getFileStatusAsArray())
+            self.ui.actionUpload.setEnabled(self.canUpload())
             self.resetUI("Ready...")
+            if self.uploading:
+                self.on_actionUpload_triggered()
         else:
             self.resetUI(status, detail)
 
     @pyqtSlot()
     def on_actionUpload_triggered(self):
+        if not self.uploading:
+            if self.uploader.cancelled:
+                self.uploading = True
+                self.on_actionRescan_triggered()
+                return
+
         self.disableControls()
         self.ui.actionCancel.setEnabled(True)
         self.save_progress_on_cancel = False
@@ -272,17 +338,22 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def on_actionLogin_triggered(self):
-        self.authWindow.show()
-        self.authWindow.login()
+        self.auth_window.show()
+        self.auth_window.login()
 
     @pyqtSlot()
     def on_actionLogout_triggered(self):
-        self.setWindowTitle(self.ui.title)
-        self.authWindow.logout()
+        self.setWindowTitle("%s (%s)" % (self.ui.title, self.server))
+        self.auth_window.logout()
         self.identity = None
         self.ui.actionUpload.setEnabled(False)
         self.ui.actionLogout.setEnabled(False)
         self.ui.actionLogin.setEnabled(True)
+        self.updateStatus("Logged out.")
+
+    @pyqtSlot()
+    def on_actionServer_triggered(self):
+        self.ui.serverMenu.exec(QCursor.pos())
 
     @pyqtSlot()
     def on_actionHelp_triggered(self):
@@ -298,6 +369,7 @@ class MainWindow(QMainWindow):
         qApp.restoreOverrideCursor()
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
+        msg.setWindowIcon(QIcon(":/images/upload.png"))
         msg.setWindowTitle("Confirm Action")
         msg.setText("Save progress for the current upload?")
         msg.setInformativeText("Selecting \"Yes\" will attempt to resume this transfer from the point where it was "
@@ -320,7 +392,7 @@ class MainWindowUI(object):
         # Main Window
         MainWin.setObjectName("MainWindow")
         MainWin.setWindowTitle(MainWin.tr(self.title))
-        # MainWin.setWindowIcon(QIcon(":/images/bag.png"))
+        MainWin.setWindowIcon(QIcon(":/images/upload.png"))
         MainWin.resize(800, 600)
         self.centralWidget = QWidget(MainWin)
         self.centralWidget.setObjectName("centralWidget")
@@ -411,6 +483,13 @@ class MainWindowUI(object):
         self.actionCancel.setToolTip(MainWin.tr("Cancel any upload(s) in-progress"))
         self.actionCancel.setShortcut(MainWin.tr("Ctrl+C"))
 
+        # Server
+        self.actionServer = QAction(MainWin)
+        self.actionServer.setObjectName("actionServer")
+        self.actionServer.setText(MainWin.tr("Server"))
+        self.actionServer.setToolTip(MainWin.tr("Change the target server"))
+        self.actionServer.setShortcut(MainWin.tr("Ctrl+S"))
+
         # Login
         self.actionLogin = QAction(MainWin)
         self.actionLogin.setObjectName("actionLogin")
@@ -440,12 +519,43 @@ class MainWindowUI(object):
         self.actionHelp.setToolTip(MainWin.tr("Help"))
         self.actionHelp.setShortcut(MainWin.tr("Ctrl+H"))
 
+    # Menu Bar
+
+        """
+        self.menuBar = QMenuBar(MainWin)
+        self.menuBar.setObjectName("menuBar")
+        MainWin.setMenuBar(self.menuBar)
+        self.menuBar.setStyleSheet(
+            "QMenuBar{font-family: Arial;font-style: normal;font-size: 10pt;font-weight: bold;};")
+        """
+
+        # Server Menu
+        self.serverMenu = QMenu(MainWin)
+        self.serverMenu.setObjectName("serverMenu")
+        self.serverMenu.triggered.connect(MainWin.onServerMenuTriggered)
+        ag = QActionGroup(MainWin, exclusive=True)
+        servers = MainWin.uploader.getServers()
+        for server in servers:
+            menuText = "%s: %s" % (server["desc"], server["host"])
+            action = ag.addAction(QAction(menuText, MainWin, checkable=True))
+            action.setData(server)
+            self.serverMenu.addAction(action)
+            default = MainWin.uploader.getDefaultServer()
+            if server == default:
+                action.setChecked(True)
+                self.serverMenu.setTitle(MainWin.tr(menuText))
+        # self.menuBar.addAction(self.serverMenu.menuAction())
+
     # Tool Bar
 
         self.mainToolBar = QToolBar(MainWin)
         self.mainToolBar.setObjectName("mainToolBar")
         self.mainToolBar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         MainWin.addToolBar(Qt.TopToolBarArea, self.mainToolBar)
+
+        # Server
+        self.mainToolBar.addAction(self.actionServer)
+        self.actionServer.setIcon(qApp.style().standardIcon(QStyle.SP_ComputerIcon))
 
         # Upload
         self.mainToolBar.addAction(self.actionUpload)

@@ -95,6 +95,8 @@ class AuthWidget(QWebEngineView):
     def logout(self):
         if not (self.auth_url.host() and self.auth_url.scheme()):
             return
+        if not self.authenticated:
+            return
         logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
         try:
