@@ -1,64 +1,100 @@
 import os
 import logging
 import webbrowser
+import urllib.parse
 from PyQt5.QtCore import Qt, QCoreApplication, QMetaObject, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import qApp, QMainWindow, QWidget, QAction, QSizePolicy, QPushButton, QStyle, QSplitter, QLabel, \
     QToolBar, QStatusBar, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QAbstractItemView, QLineEdit, QFileDialog, \
-    QMessageBox, QMenuBar, QMenu, QActionGroup
-from PyQt5.QtGui import QIcon, QCursor
+    QMessageBox
+from deriva_common import write_config, stob
 from deriva_qt.common import log_widget, table_widget, async_task
 from deriva_qt.auth_agent.ui.auth_window import AuthWindow
 from deriva_qt.upload_gui import resources
 from deriva_qt.upload_gui.impl.upload_tasks import *
+from deriva_qt.upload_gui.ui.options_window import OptionsDialog
 
 
-# noinspection PyArgumentList
 class MainWindow(QMainWindow):
     uploader = None
+    config_file = None
+    credential_file = None
+    cookie_persistence = True
     auth_window = None
     identity = None
-    server = None
     current_path = None
     uploading = False
-    cookie_persistence = True
     save_progress_on_cancel = False
     progress_update_signal = pyqtSignal(str)
-    
-    def __init__(self, uploader, window_title=None, cookie_persistence=True):
+
+    def __init__(self,
+                 uploader,
+                 config_file=None,
+                 credential_file=None,
+                 hostname=None,
+                 window_title=None,
+                 cookie_persistence=True):
         super(MainWindow, self).__init__()
-        self.uploader = uploader
-        self.server = uploader.server["host"]
-        self.cookie_persistence = cookie_persistence
+        qApp.aboutToQuit.connect(self.quitEvent)
+
         self.ui = MainWindowUI(self)
-        if window_title:
-            self.ui.title = window_title
-            self.setWindowTitle("%s (%s)" % (self.ui.title, self.server))
-        self.ui.browseButton.clicked.connect(self.on_actionBrowse_triggered)
-        self.configure()
+        self.ui.title = window_title if window_title else "Deriva Upload"
+
+        self.config_file = config_file
+        self.credential_file = credential_file
+        self.cookie_persistence = cookie_persistence
+
+        self.show()
+        qApp.setOverrideCursor(Qt.WaitCursor)
+        self.configure(uploader, hostname)
+        qApp.restoreOverrideCursor()
+
+    def configure(self, uploader, hostname):
+
+        # if a hostname has been provided, it overrides whatever default host a given uploader is configured for
+        server = None
+        if hostname:
+            server = dict()
+            if hostname.startswith("http"):
+                url = urllib.parse.urlparse(hostname)
+                server["protocol"] = url.scheme
+                server["host"] = url.netloc
+            else:
+                server["protocol"] = "https"
+                server["host"] = hostname
+
+        # instantiate the uploader...
+        # if an uploader instance does not have a default host configured, prompt the user to configure one
+        if self.uploader:
+            del self.uploader
+        self.uploader = uploader(self.config_file, self.credential_file, server)
+        if not self.uploader.server:
+            if not self.checkValidServer():
+                return
+            else:
+                self.uploader.setServer(server)
+
+        self.setWindowTitle("%s (%s)" % (self.ui.title, self.uploader.server["host"]))
+
         self.getNewAuthWindow()
         if not self.checkVersion():
             return
         self.getSession()
 
-    def configure(self):
-        # configure logging
-        self.ui.logTextBrowser.widget.log_update_signal.connect(self.updateLog)
-        self.ui.logTextBrowser.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-        logging.getLogger().addHandler(self.ui.logTextBrowser)
-        logging.getLogger().setLevel(logging.INFO)
-
     def getNewAuthWindow(self):
         if self.auth_window:
+            if self.auth_window.authenticated():
+                self.on_actionLogout_triggered()
             del self.auth_window
 
         self.auth_window = AuthWindow(config={"server": self.uploader.server},
                                       is_child_window=True,
                                       cookie_persistence=self.cookie_persistence,
                                       authentication_success_callback=self.onLoginSuccess)
+        self.ui.actionLogin.setEnabled(True)
 
     def getSession(self):
         qApp.setOverrideCursor(Qt.WaitCursor)
-        self.updateStatus("Validating session.")
+        self.updateStatus("Validating session: %s" % self.uploader.server["host"])
         queryTask = SessionQueryTask(self.uploader)
         queryTask.status_update_signal.connect(self.onSessionResult)
         queryTask.query()
@@ -69,19 +105,19 @@ class MainWindow(QMainWindow):
         self.getSession()
 
     def enableControls(self):
-        self.ui.actionServer.setEnabled(True)
         self.ui.actionUpload.setEnabled(self.canUpload())
         self.ui.actionRescan.setEnabled(self.current_path is not None)
         self.ui.actionCancel.setEnabled(False)
+        self.ui.actionOptions.setEnabled(True)
         self.ui.actionLogin.setEnabled(not self.auth_window.authenticated())
         self.ui.actionLogout.setEnabled(self.auth_window.authenticated())
         self.ui.actionExit.setEnabled(True)
         self.ui.browseButton.setEnabled(True)
 
     def disableControls(self):
-        self.ui.actionServer.setEnabled(False)
         self.ui.actionUpload.setEnabled(False)
         self.ui.actionRescan.setEnabled(False)
+        self.ui.actionOptions.setEnabled(False)
         self.ui.actionLogin.setEnabled(False)
         self.ui.actionLogout.setEnabled(False)
         self.ui.actionExit.setEnabled(False)
@@ -93,6 +129,33 @@ class MainWindow(QMainWindow):
             self.cancelTasks(self.cancelConfirmation())
         if event:
             event.accept()
+
+    def checkValidServer(self):
+        if self.uploader.server and self.uploader.server.get("host"):
+            return True
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("No Server Configured")
+        msg.setText("Add server configuration now?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        ret = msg.exec_()
+        if ret == QMessageBox.Yes:
+            self.on_actionOptions_triggered()
+        else:
+            return False
+
+    def onServerChanged(self, server):
+        if server is None or server == self.uploader.server:
+            return
+
+        qApp.setOverrideCursor(Qt.WaitCursor)
+        self.uploader.setServer(server)
+        qApp.restoreOverrideCursor()
+        if not self.checkValidServer():
+            return
+        self.setWindowTitle("%s (%s)" % (self.ui.title, self.uploader.server["host"]))
+        self.getNewAuthWindow()
+        self.getSession()
 
     def cancelTasks(self, save_progress):
         qApp.setOverrideCursor(Qt.WaitCursor)
@@ -176,7 +239,6 @@ class MainWindow(QMainWindow):
             self.updateStatus("Version incompatibility detected", "Current version: [%s], required version(s): %s." % (
                 self.uploader.getVersion(), self.uploader.getVersionCompatibility()))
             self.disableControls()
-            self.ui.actionServer.setEnabled(True)
             self.ui.actionExit.setEnabled(True)
             self.updateConfirmation()
             return False
@@ -189,7 +251,6 @@ class MainWindow(QMainWindow):
         qApp.restoreOverrideCursor()
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowIcon(QIcon(":/images/upload.png"))
         msg.setWindowTitle("Update Required")
         msg.setText("Launch browser and download new version?")
         msg.setInformativeText("Selecting \"Yes\" will launch an external web browser which will take you to a "
@@ -211,20 +272,6 @@ class MainWindow(QMainWindow):
         scanTask.status_update_signal.connect(self.onScanResult)
         scanTask.scan(self.current_path)
 
-    @pyqtSlot(QAction)
-    def onServerMenuTriggered(self, action):
-        if not action.isChecked():
-            return
-        server = action.data()
-        if server == self.uploader.server:
-            return
-        self.uploader.setServer(server)
-        self.server = self.uploader.server["host"]
-        if self.auth_window.authenticated():
-            self.on_actionLogout_triggered()
-        self.getNewAuthWindow()
-        self.on_actionLogin_triggered()
-
     @pyqtSlot(str)
     def updateProgress(self, status):
         if status:
@@ -233,13 +280,14 @@ class MainWindow(QMainWindow):
             self.displayUploads(self.uploader.getFileStatusAsArray())
 
     @pyqtSlot(str, str)
-    def updateStatus(self, status, detail=None):
-        logging.info(status + ((": %s" % detail) if detail else ""))
+    def updateStatus(self, status, detail=None, success=True):
+        msg = status + ((": %s" % detail) if detail else "")
+        logging.info(msg) if success else logging.error(msg)
         self.statusBar().showMessage(status)
 
     @pyqtSlot(str, str)
-    def resetUI(self, status, detail=None):
-        self.updateStatus(status, detail)
+    def resetUI(self, status, detail=None, success=True):
+        self.updateStatus(status, detail, success)
         self.enableControls()
 
     @pyqtSlot(str)
@@ -252,7 +300,7 @@ class MainWindow(QMainWindow):
         if success:
             self.identity = result["client"]["id"]
             display_name = result["client"]["full_name"]
-            self.setWindowTitle("%s (%s - %s)" % (self.ui.title, self.server, display_name))
+            self.setWindowTitle("%s (%s - %s)" % (self.ui.title, self.uploader.server["host"], display_name))
             self.ui.actionLogout.setEnabled(True)
             self.ui.actionLogin.setEnabled(False)
             if self.current_path:
@@ -266,6 +314,28 @@ class MainWindow(QMainWindow):
         qApp.restoreOverrideCursor()
         if not success:
             self.resetUI(status, detail)
+            return
+        if not result:
+            return
+        confirm_updates = stob(self.uploader.server.get("confirm_updates", False))
+        if confirm_updates:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setWindowTitle("Updated Configuration Available")
+            msg.setText("Apply updated configuration?")
+            msg.setInformativeText(
+                "Selecting \"Yes\" will apply the latest configuration from the server and overwrite the existing "
+                "default configuration file.\n\nSelecting \"No\" will ignore these updates and continue to use the "
+                "existing configuration.\n\nYou should always apply the latest configuration changes from the server "
+                "unless you understand the risk involved with using a potentially out-of-date configuration.")
+
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            ret = msg.exec_()
+            if ret == QMessageBox.No:
+                return
+
+        write_config(self.uploader.getDeployedConfigFilePath(), result)
+        self.uploader.initialize(cleanup=False)
         if not self.checkVersion():
             return
         self.on_actionRescan_triggered()
@@ -277,6 +347,8 @@ class MainWindow(QMainWindow):
                                            "Select Directory",
                                            self.current_path,
                                            QFileDialog.ShowDirsOnly)
+        if not path:
+            return
         self.current_path = path
         self.ui.pathTextBox.setText(os.path.normpath(self.current_path))
         self.scanDirectory()
@@ -298,7 +370,7 @@ class MainWindow(QMainWindow):
             if self.uploading:
                 self.on_actionUpload_triggered()
         else:
-            self.resetUI(status, detail)
+            self.resetUI(status, detail, success)
 
     @pyqtSlot()
     def on_actionUpload_triggered(self):
@@ -327,7 +399,7 @@ class MainWindow(QMainWindow):
         if success:
             self.resetUI("Ready.")
         else:
-            self.resetUI(status, detail)
+            self.resetUI(status, detail, success)
 
     @pyqtSlot()
     def on_actionCancel_triggered(self):
@@ -338,12 +410,17 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def on_actionLogin_triggered(self):
+        if not self.auth_window:
+            if self.checkValidServer():
+                self.getNewAuthWindow()
+            else:
+                return
         self.auth_window.show()
         self.auth_window.login()
 
     @pyqtSlot()
     def on_actionLogout_triggered(self):
-        self.setWindowTitle("%s (%s)" % (self.ui.title, self.server))
+        self.setWindowTitle("%s (%s)" % (self.ui.title, self.uploader.server["host"]))
         self.auth_window.logout()
         self.identity = None
         self.ui.actionUpload.setEnabled(False)
@@ -352,8 +429,8 @@ class MainWindow(QMainWindow):
         self.updateStatus("Logged out.")
 
     @pyqtSlot()
-    def on_actionServer_triggered(self):
-        self.ui.serverMenu.exec(QCursor.pos())
+    def on_actionOptions_triggered(self):
+        OptionsDialog.getOptions(self)
 
     @pyqtSlot()
     def on_actionHelp_triggered(self):
@@ -364,12 +441,16 @@ class MainWindow(QMainWindow):
         self.closeEvent()
         QCoreApplication.quit()
 
+    def quitEvent(self):
+        qApp.closeAllWindows()
+        if self.auth_window:
+            self.auth_window.logout()
+
     @staticmethod
     def cancelConfirmation():
         qApp.restoreOverrideCursor()
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowIcon(QIcon(":/images/upload.png"))
         msg.setWindowTitle("Confirm Action")
         msg.setText("Save progress for the current upload?")
         msg.setInformativeText("Selecting \"Yes\" will attempt to resume this transfer from the point where it was "
@@ -392,7 +473,6 @@ class MainWindowUI(object):
         # Main Window
         MainWin.setObjectName("MainWindow")
         MainWin.setWindowTitle(MainWin.tr(self.title))
-        MainWin.setWindowIcon(QIcon(":/images/upload.png"))
         MainWin.resize(800, 600)
         self.centralWidget = QWidget(MainWin)
         self.centralWidget.setObjectName("centralWidget")
@@ -409,6 +489,7 @@ class MainWindowUI(object):
         self.pathTextBox.setReadOnly(True)
         self.horizontalLayout.addWidget(self.pathTextBox)
         self.browseButton = QPushButton("Browse", self.centralWidget)
+        self.browseButton.clicked.connect(MainWin.on_actionBrowse_triggered)
         self.horizontalLayout.addWidget(self.browseButton)
         self.verticalLayout.addLayout(self.horizontalLayout)
 
@@ -483,12 +564,12 @@ class MainWindowUI(object):
         self.actionCancel.setToolTip(MainWin.tr("Cancel any upload(s) in-progress"))
         self.actionCancel.setShortcut(MainWin.tr("Ctrl+C"))
 
-        # Server
-        self.actionServer = QAction(MainWin)
-        self.actionServer.setObjectName("actionServer")
-        self.actionServer.setText(MainWin.tr("Server"))
-        self.actionServer.setToolTip(MainWin.tr("Change the target server"))
-        self.actionServer.setShortcut(MainWin.tr("Ctrl+S"))
+        # Options
+        self.actionOptions = QAction(MainWin)
+        self.actionOptions.setObjectName("actionOptions")
+        self.actionOptions.setText(MainWin.tr("Options"))
+        self.actionOptions.setToolTip(MainWin.tr("Configuration Options"))
+        self.actionOptions.setShortcut(MainWin.tr("Ctrl+P"))
 
         # Login
         self.actionLogin = QAction(MainWin)
@@ -496,6 +577,7 @@ class MainWindowUI(object):
         self.actionLogin.setText(MainWin.tr("Login"))
         self.actionLogin.setToolTip(MainWin.tr("Login to the server"))
         self.actionLogin.setShortcut(MainWin.tr("Ctrl+G"))
+        self.actionLogin.setEnabled(False)
 
         # Logout
         self.actionLogout = QAction(MainWin)
@@ -529,33 +611,12 @@ class MainWindowUI(object):
             "QMenuBar{font-family: Arial;font-style: normal;font-size: 10pt;font-weight: bold;};")
         """
 
-        # Server Menu
-        self.serverMenu = QMenu(MainWin)
-        self.serverMenu.setObjectName("serverMenu")
-        self.serverMenu.triggered.connect(MainWin.onServerMenuTriggered)
-        ag = QActionGroup(MainWin, exclusive=True)
-        servers = MainWin.uploader.getServers()
-        default = MainWin.uploader.getDefaultServer()
-        for server in servers:
-            menuText = "%s: %s" % (server["desc"], server["host"])
-            action = ag.addAction(QAction(menuText, MainWin, checkable=True))
-            action.setData(server)
-            self.serverMenu.addAction(action)
-            if server == default:
-                action.setChecked(True)
-                self.serverMenu.setTitle(MainWin.tr(menuText))
-        # self.menuBar.addAction(self.serverMenu.menuAction())
-
     # Tool Bar
 
         self.mainToolBar = QToolBar(MainWin)
         self.mainToolBar.setObjectName("mainToolBar")
         self.mainToolBar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         MainWin.addToolBar(Qt.TopToolBarArea, self.mainToolBar)
-
-        # Server
-        self.mainToolBar.addAction(self.actionServer)
-        self.actionServer.setIcon(qApp.style().standardIcon(QStyle.SP_ComputerIcon))
 
         # Upload
         self.mainToolBar.addAction(self.actionUpload)
@@ -569,6 +630,10 @@ class MainWindowUI(object):
         self.mainToolBar.addAction(self.actionCancel)
         self.actionCancel.setIcon(qApp.style().standardIcon(QStyle.SP_BrowserStop))
         self.actionCancel.setEnabled(False)
+
+        # Options
+        self.mainToolBar.addAction(self.actionOptions)
+        self.actionOptions.setIcon(qApp.style().standardIcon(QStyle.SP_FileDialogDetailedView))
 
         # this spacer right justifies everything that comes after it
         spacer = QWidget()
@@ -598,6 +663,12 @@ class MainWindowUI(object):
         self.statusBar.setStatusTip("")
         self.statusBar.setObjectName("statusBar")
         MainWin.setStatusBar(self.statusBar)
+
+    # configure logging
+        self.logTextBrowser.widget.log_update_signal.connect(MainWin.updateLog)
+        self.logTextBrowser.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        logging.getLogger().addHandler(self.logTextBrowser)
+        logging.getLogger().setLevel(logging.INFO)
 
     # finalize UI setup
         QMetaObject.connectSlotsByName(MainWin)

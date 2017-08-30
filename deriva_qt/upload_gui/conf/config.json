@@ -1,0 +1,4 @@
+{
+  "version_compatibility": [">=0.2.0", "<1.0.0"],
+  "version_update_url": "https://github.com/informatics-isi-edu/deriva-qt/releases"
+}

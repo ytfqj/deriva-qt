@@ -51,7 +51,6 @@ class AuthWidget(QWebEngineView):
         super(AuthWidget, self).__init__()
         self.cookie_persistence = cookie_persistence
         self._timer.timeout.connect(self.onTimerFired)
-        qApp.aboutToQuit.connect(self.quitEvent)
 
         self.configure(config, credential_file)
 
@@ -97,9 +96,9 @@ class AuthWidget(QWebEngineView):
             return
         if not self.authenticated:
             return
-        logging.info("Logging out of host: %s" % self.auth_url.toString())
         self._timer.stop()
         try:
+            logging.info("Logging out of host: %s" % self.auth_url.toString())
             self._session.delete(self.auth_url.toString() + "/authn/session")
         except Exception as e:
             logging.warning("Logout error: %s" % format_exception(e))
@@ -117,6 +116,8 @@ class AuthWidget(QWebEngineView):
             self.window().statusBar().showMessage(message)
 
     def onTimerFired(self):
+        if not self.authenticated:
+            return
         resp = self._session.put(self.auth_url.toString() + "/authn/session")
         logging.debug("webauthn session:\n%s\n", resp.json())
 
@@ -184,5 +185,3 @@ class AuthWidget(QWebEngineView):
         if cookie_name == self.authn_cookie_name:
             logging.debug("%s cookie removed:\n\n%s\n\n" % (self.authn_cookie_name, cookie_str))
 
-    def quitEvent(self):
-        self.logout()

@@ -79,6 +79,8 @@ class AuthWindow(QMainWindow):
             ret = msg.exec_()
             if ret == QMessageBox.No:
                 event.ignore()
+                return
+        self.logout()
 
 
 class AuthWindowUI(object):
@@ -88,7 +90,6 @@ class AuthWindowUI(object):
         # Main Window
         MainWin.setObjectName("AuthWindow")
         MainWin.setWindowTitle(MainWin.tr("DERIVA Authentication Agent"))
-        # MainWin.setWindowIcon(QIcon(":/images/bag.png"))
         MainWin.resize(1024, 745)
         self.centralWidget = QWidget(MainWin)
         self.centralWidget.setObjectName("centralWidget")

@@ -45,7 +45,7 @@ class ConfigUpdateTask(UploadTask):
     def success_callback(self, rid, result):
         if rid != self.rid:
             return
-        self.status_update_signal.emit(True, "Configuration update success", "", "")
+        self.status_update_signal.emit(True, "Configuration update success", "", result)
 
     def error_callback(self, rid, error):
         if rid != self.rid:
