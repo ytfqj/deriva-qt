@@ -74,6 +74,7 @@ class DerivaUploadGUI(BaseCLI):
             sys.stderr.write("\n\n")
         return 0
 
+
 if __name__ == '__main__':
     gui = DerivaUploadGUI(GenericUploader, DESC, INFO)
     sys.exit(gui.main())
