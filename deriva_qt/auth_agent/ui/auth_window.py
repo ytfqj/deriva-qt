@@ -1,47 +1,198 @@
+import logging
 from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot
-from PyQt5.QtWidgets import QWidget, QMainWindow, QMessageBox, QStatusBar, QVBoxLayout, QSystemTrayIcon, QStyle, qApp
-from deriva_common import DEFAULT_CREDENTIAL_FILE
-from deriva_qt.auth_agent.ui.auth_widget import AuthWidget
+from PyQt5.QtWidgets import QWidget, QMainWindow, QMessageBox, QStatusBar, QVBoxLayout, QSystemTrayIcon, QStyle, qApp, \
+    QTabWidget, QAction, QToolBar, QSizePolicy, QHBoxLayout, QLabel, QComboBox, QSplitter
+
+from deriva_common import read_config, write_config, DEFAULT_CREDENTIAL_FILE
+from deriva_qt.common import log_widget
+from deriva_qt.auth_agent.ui.auth_widget import AuthWidget, DEFAULT_CONFIG, DEFAULT_CONFIG_FILE
 
 
 class AuthWindow(QMainWindow):
 
-    is_child_window = False
-    authentication_success_callback = None
-
     def __init__(self,
                  config,
                  credential_file=None,
-                 is_child_window=False,
                  cookie_persistence=False,
                  authentication_success_callback=None):
         super(AuthWindow, self).__init__()
-        self.is_child_window = is_child_window
-        if not self.is_child_window and credential_file is None:
-            credential_file = DEFAULT_CREDENTIAL_FILE
-        success_callback = \
+        self.config = config
+        self.credential_file = credential_file if credential_file else DEFAULT_CREDENTIAL_FILE
+        self.cookie_persistence = cookie_persistence
+        self.authentication_success_callback = \
             self.successCallback if not authentication_success_callback else authentication_success_callback
-        self.ui = AuthWindowUI(self, config, credential_file, cookie_persistence, success_callback)
-        if not is_child_window:
-            self.systemTrayIcon = QSystemTrayIcon(self)
-            self.systemTrayIcon.setIcon(qApp.style().standardIcon(QStyle.SP_TitleBarMenuButton))
-            self.systemTrayIcon.setVisible(True)
-            self.systemTrayIcon.activated.connect(self.on_systemTrayIcon_activated)
+
+        self.systemTrayIcon = QSystemTrayIcon(self)
+        self.systemTrayIcon.setIcon(qApp.style().standardIcon(QStyle.SP_TitleBarMenuButton))
+        self.systemTrayIcon.setVisible(True)
+        self.systemTrayIcon.activated.connect(self.on_systemTrayIcon_activated)
+
+        if not self.config:
+            self.config = read_config(DEFAULT_CONFIG_FILE, create_default=True, default=DEFAULT_CONFIG)
+        self.ui = AuthWindowUI(self)
+        self.hide()
+        self.populateServerList()
+        self.show()
+        self.on_actionLogin_triggered()
+        qApp.aboutToQuit.connect(self.logout)
 
     def authenticated(self):
-        return self.ui.authWidget.authenticated
-
-    def login(self):
-        self.ui.authWidget.login()
+        authenticated = False
+        for i in range(self.ui.tabWidget.count()):
+            widget = self.ui.tabWidget.widget(i)
+            if isinstance(widget, AuthWidget):
+                if widget.authenticated:
+                    authenticated = True
+        return authenticated
 
     def logout(self):
-        self.ui.authWidget.logout()
+        for i in range(self.ui.tabWidget.count()):
+            widget = self.ui.tabWidget.widget(i)
+            if isinstance(widget, AuthWidget):
+                widget.logout()
 
     def successCallback(self, **kwargs):
-        if self.is_child_window:
-            self.hide()
+       # self.setWindowState(Qt.WindowMinimized)
+        pass
+
+    def populateServerList(self):
+        for server in self.config.get("servers", []):
+            if not server:
+                continue
+            host = server.get("host")
+            if host:
+                self.ui.serverComboBox.addItem(host, server)
+
+    def getConfiguredServers(self):
+        servers = list()
+        for x in range(self.ui.serverComboBox.count()):
+            servers.append(self.ui.serverComboBox.itemData(x, Qt.UserRole))
+        self.config["servers"] = servers
+        return self.config
+
+    def addAuthTab(self, config, credential_file, cookie_persistence, success_callback):
+        authWidget = AuthWidget(self, config, credential_file, cookie_persistence)
+        authWidget.setSuccessCallback(success_callback)
+        authWidget.setObjectName("authWidget")
+        return self.ui.tabWidget.addTab(authWidget, authWidget.auth_url.host())
+
+    @pyqtSlot(int)
+    def onTabChanged(self, index):
+        host = self.ui.tabWidget.tabText(index)
+        cur = self.ui.serverComboBox.currentIndex()
+        index = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
+        if (index != -1) and (index != cur):
+            self.ui.serverComboBox.setCurrentIndex(index)
+
+    @pyqtSlot(int)
+    def onTabClosed(self, index):
+        widget = self.ui.tabWidget.widget(index)
+        if isinstance(widget, AuthWidget):
+            widget.logout()
+            del widget
+        self.ui.tabWidget.removeTab(index)
+
+    @pyqtSlot(int)
+    def onServerListChanged(self, item):
+        if self.isHidden():
+            return
+
+        host = self.ui.serverComboBox.itemText(item)
+        for i in range(self.ui.tabWidget.count()):
+            if host == self.ui.tabWidget.tabText(i):
+                self.ui.tabWidget.setCurrentIndex(i)
+                return
+
+    @pyqtSlot()
+    def on_actionAdd_triggered(self):
+        host = self.ui.serverComboBox.currentText()
+        if not host:
+            return
+        index = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
+        if index != -1:
+            for i in range(self.ui.tabWidget.count()):
+                if host == self.ui.tabWidget.tabText(i):
+                    self.ui.tabWidget.setCurrentIndex(i)
+                    return
+
+        server = {"host": host, "protocol": "https"}
+        if index == -1:
+            self.ui.serverComboBox.addItem(host, server)
         else:
-            self.setWindowState(Qt.WindowMinimized)
+            self.ui.serverComboBox.setItemData(index, server)
+        index = self.addAuthTab(server,
+                                self.credential_file,
+                                self.cookie_persistence,
+                                self.authentication_success_callback)
+        self.ui.tabWidget.setTabEnabled(index, False)
+        widget = self.ui.tabWidget.widget(index)
+        if isinstance(widget, AuthWidget):
+            widget.login()
+        self.ui.tabWidget.setTabEnabled(index, True)
+        self.ui.tabWidget.setCurrentIndex(index)
+
+        config = self.getConfiguredServers()
+        write_config(DEFAULT_CONFIG_FILE, config)
+
+    @pyqtSlot()
+    def on_actionRemove_triggered(self):
+        host = self.ui.serverComboBox.currentText()
+        index = self.ui.serverComboBox.currentIndex()
+        self.ui.serverComboBox.removeItem(index)
+        for i in range(self.ui.tabWidget.count()):
+            if host == self.ui.tabWidget.tabText(i):
+                widget = self.ui.tabWidget.widget(i)
+                if isinstance(widget, AuthWidget):
+                    widget.logout()
+                    del widget
+                self.ui.tabWidget.removeTab(i)
+
+        config = self.getConfiguredServers()
+        write_config(DEFAULT_CONFIG_FILE, config)
+
+    @pyqtSlot()
+    def on_actionLogin_triggered(self):
+        index = self.ui.serverComboBox.currentIndex()
+        if index == -1:
+            return
+        host = self.ui.serverComboBox.itemText(index)
+        for i in range(self.ui.tabWidget.count()):
+            if host == self.ui.tabWidget.tabText(i):
+                widget = self.ui.tabWidget.widget(i)
+                if isinstance(widget, AuthWidget):
+                    widget.login()
+                    return
+
+        server = self.ui.serverComboBox.itemData(index, Qt.UserRole)
+        index = self.addAuthTab(server,
+                                self.credential_file,
+                                self.cookie_persistence,
+                                self.authentication_success_callback)
+        self.ui.tabWidget.setTabEnabled(index, False)
+        widget = self.ui.tabWidget.widget(index)
+        if isinstance(widget, AuthWidget):
+            widget.login()
+        self.ui.tabWidget.setTabEnabled(index, True)
+        self.ui.tabWidget.setCurrentIndex(index)
+
+    @pyqtSlot()
+    def on_actionLogout_triggered(self):
+        host = self.ui.serverComboBox.currentText()
+        for i in range(self.ui.tabWidget.count()):
+            if host == self.ui.tabWidget.tabText(i):
+                widget = self.ui.tabWidget.widget(i)
+                if isinstance(widget, AuthWidget):
+                    widget.logout()
+                    del widget
+                self.ui.tabWidget.removeTab(i)
+
+    @pyqtSlot()
+    def on_actionExit_triggered(self):
+        self.close()
+
+    @pyqtSlot(str)
+    def updateLog(self, text):
+        self.ui.logTextBrowser.widget.appendPlainText(text)
 
     @pyqtSlot(QSystemTrayIcon.ActivationReason)
     def on_systemTrayIcon_activated(self, reason):
@@ -58,39 +209,38 @@ class AuthWindow(QMainWindow):
             if self.windowState() & Qt.WindowMinimized:
                 event.ignore()
                 self.hide()
-                if not self.is_child_window:
-                    self.systemTrayIcon.showMessage('DERIVA Authentication Agent', 'Running in the background.')
+                self.systemTrayIcon.showMessage('DERIVA Authentication Agent', 'Running in the background.')
                 return
 
         super(AuthWindow, self).changeEvent(event)
 
     def closeEvent(self, event):
-        if not self.is_child_window:
-            self.systemTrayIcon.hide()
-            if not self.ui.authWidget.authenticated:
-                return
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Warning)
-            msg.setWindowTitle("Confirm Action")
-            msg.setText("Are you sure you wish to exit?")
-            msg.setDetailedText("If you close the application, your credentials will not be automatically refreshed "
-                                "and will be invalidated once the credential expiration time is reached.")
-            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            ret = msg.exec_()
-            if ret == QMessageBox.No:
-                event.ignore()
-                return
+        self.systemTrayIcon.hide()
+        if not self.authenticated():
+            return
+
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Confirm Action")
+        msg.setText("Are you sure you wish to exit?")
+        msg.setDetailedText("If you close the application, your credentials will not be automatically refreshed "
+                            "and will be invalidated once the credential expiration time is reached.")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        ret = msg.exec_()
+        if ret == QMessageBox.No:
+            event.ignore()
+            return
         self.logout()
 
 
 class AuthWindowUI(object):
 
-    def __init__(self, MainWin, config, credential_file, cookie_persistence, success_callback):
-
+    def __init__(self, MainWin):
         # Main Window
         MainWin.setObjectName("AuthWindow")
         MainWin.setWindowTitle(MainWin.tr("DERIVA Authentication Agent"))
-        MainWin.resize(1024, 745)
+        MainWin.resize(1024, 860)
+        self.config = MainWin.config
         self.centralWidget = QWidget(MainWin)
         self.centralWidget.setObjectName("centralWidget")
         MainWin.setCentralWidget(self.centralWidget)
@@ -98,18 +248,119 @@ class AuthWindowUI(object):
         self.verticalLayout.setContentsMargins(11, 11, 11, 11)
         self.verticalLayout.setSpacing(6)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.authWidget = AuthWidget(config, credential_file, cookie_persistence)
-        self.authWidget.setSuccessCallback(success_callback)
-        self.authWidget.setObjectName("authWidget")
-        self.verticalLayout.addWidget(self.authWidget)
+
+        self.tabWidget = QTabWidget(MainWin)
+        self.tabWidget.currentChanged.connect(MainWin.onTabChanged)
+        self.tabWidget.tabCloseRequested.connect(MainWin.onTabClosed)
+        self.tabWidget.setTabsClosable(True)
+
+        # Splitter for log
+        self.splitter = QSplitter(Qt.Vertical)
+        self.splitter.addWidget(self.tabWidget)
+
+        # Log Widget
+        self.logTextBrowser = log_widget.QPlainTextEditLogger(self.centralWidget)
+        self.logTextBrowser.widget.setObjectName("logTextBrowser")
+        self.logTextBrowser.widget.setStyleSheet(
+            """
+            QPlainTextEdit {
+                    border: 2px solid grey;
+                    border-radius: 5px;
+                    background-color: lightgray;
+            }
+            """)
+        self.splitter.addWidget(self.logTextBrowser.widget)
+
+        # add splitter
+        self.splitter.setSizes([800, 100])
+        self.verticalLayout.addWidget(self.splitter)
+
+        # Tool Bar
+        self.mainToolBar = QToolBar(MainWin)
+        self.mainToolBar.setObjectName("mainToolBar")
+        self.mainToolBar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        MainWin.addToolBar(Qt.TopToolBarArea, self.mainToolBar)
+
+        # Servers
+        self.serverWidget = QWidget(MainWin)
+        self.serverLayout = QHBoxLayout()
+        self.serverLabel = QLabel("Server:")
+        self.serverLayout.addWidget(self.serverLabel)
+        self.serverComboBox = QComboBox()
+        self.serverComboBox.setEditable(True)
+        self.serverComboBox.setDuplicatesEnabled(False)
+        self.serverComboBox.setMinimumContentsLength(50)
+        self.serverComboBox.currentIndexChanged.connect(MainWin.onServerListChanged)
+        lineEdit = self.serverComboBox.lineEdit()
+        lineEdit.returnPressed.connect(MainWin.on_actionAdd_triggered)
+        self.serverLayout.addWidget(self.serverComboBox)
+        self.serverWidget.setLayout(self.serverLayout)
+        self.mainToolBar.addWidget(self.serverWidget)
+
+        # Add
+        self.actionAdd = QAction(MainWin)
+        self.actionAdd.setObjectName("actionAdd")
+        self.actionAdd.setText(MainWin.tr("Add"))
+        self.actionAdd.setToolTip(MainWin.tr("Add to server list"))
+        self.actionAdd.setShortcut(MainWin.tr("Ctrl+A"))
+
+        # Remove
+        self.actionRemove = QAction(MainWin)
+        self.actionRemove.setObjectName("actionRemove")
+        self.actionRemove.setText(MainWin.tr("Remove"))
+        self.actionRemove.setToolTip(MainWin.tr("Remove from server list"))
+        self.actionRemove.setShortcut(MainWin.tr("Ctrl+X"))
+
+        # Login
+        self.actionLogin = QAction(MainWin)
+        self.actionLogin.setObjectName("actionLogin")
+        self.actionLogin.setText(MainWin.tr("Login"))
+        self.actionLogin.setToolTip(MainWin.tr("Login to the currently selected server"))
+        self.actionLogin.setShortcut(MainWin.tr("Ctrl+L"))
+
+        # Logout
+        self.actionLogout = QAction(MainWin)
+        self.actionLogout.setObjectName("actionLogout")
+        self.actionLogout.setText(MainWin.tr("Logout"))
+        self.actionLogout.setToolTip(MainWin.tr("Logout of the currently selected server"))
+        self.actionLogout.setShortcut(MainWin.tr("Ctrl+O"))
+
+        # Add
+        self.mainToolBar.addAction(self.actionAdd)
+        self.actionAdd.setIcon(qApp.style().standardIcon(QStyle.SP_FileDialogNewFolder))
+
+        # Remove
+        self.mainToolBar.addAction(self.actionRemove)
+        self.actionRemove.setIcon(qApp.style().standardIcon(QStyle.SP_DialogDiscardButton))
+        self.mainToolBar.addSeparator()
+
+        # this spacer right justifies everything that comes after it
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.mainToolBar.addWidget(spacer)
+
+        # Login
+        self.mainToolBar.addSeparator()
+        self.mainToolBar.addAction(self.actionLogin)
+        self.actionLogin.setIcon(qApp.style().standardIcon(QStyle.SP_DialogApplyButton))
+
+        # Logout
+        self.mainToolBar.addSeparator()
+        self.mainToolBar.addAction(self.actionLogout)
+        self.actionLogout.setIcon(qApp.style().standardIcon(QStyle.SP_DialogOkButton))
 
         # Status Bar
-
         self.statusBar = QStatusBar(MainWin)
         self.statusBar.setToolTip("")
         self.statusBar.setStatusTip("")
         self.statusBar.setObjectName("statusBar")
         MainWin.setStatusBar(self.statusBar)
+
+        # configure logging
+        self.logTextBrowser.widget.log_update_signal.connect(MainWin.updateLog)
+        self.logTextBrowser.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        logging.getLogger().addHandler(self.logTextBrowser)
+        logging.getLogger().setLevel(logging.INFO)
 
         # finalize UI setup
         QMetaObject.connectSlotsByName(MainWin)
