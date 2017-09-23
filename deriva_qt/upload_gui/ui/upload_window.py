@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import qApp, QMainWindow, QWidget, QAction, QSizePolicy, QP
     QMessageBox
 from deriva_common import write_config, stob
 from deriva_qt.common import log_widget, table_widget, async_task
-from deriva_qt.auth_agent.ui.auth_window import AuthWindow
+from deriva_qt.auth_agent.ui.embedded_auth_window import EmbeddedAuthWindow
 from deriva_qt.upload_gui import resources
 from deriva_qt.upload_gui.impl.upload_tasks import *
 from deriva_qt.upload_gui.ui.options_window import OptionsDialog
@@ -86,10 +86,10 @@ class MainWindow(QMainWindow):
                 self.on_actionLogout_triggered()
             del self.auth_window
 
-        self.auth_window = AuthWindow(config={"server": self.uploader.server},
-                                      is_child_window=True,
-                                      cookie_persistence=self.cookie_persistence,
-                                      authentication_success_callback=self.onLoginSuccess)
+        self.auth_window = \
+            EmbeddedAuthWindow(config=self.uploader.server,
+                               cookie_persistence=self.cookie_persistence,
+                               authentication_success_callback=self.onLoginSuccess)
         self.ui.actionLogin.setEnabled(True)
 
     def getSession(self):
