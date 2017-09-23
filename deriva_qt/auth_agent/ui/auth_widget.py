@@ -56,7 +56,7 @@ class AuthWidget(QWebEngineView):
         self.credential_file = credential_file
         host = self.config.get("host")
         if not host:
-            self.setHtml(ERROR_HTML % "Could not locate hostname parameter in configuration file.")
+            self.setHtml(ERROR_HTML % "Could not locate hostname parameter in configuration.")
             return
         self.auth_url = QUrl()
         self.auth_url.setScheme(config.get("protocol", "https"))
@@ -83,6 +83,9 @@ class AuthWidget(QWebEngineView):
             del self.authn_session_page
 
     def login(self):
+        if not self.auth_url:
+            logging.error("Could not locate hostname parameter in configuration.")
+            return
         logging.info("Authenticating with host: %s" % self.auth_url.toString())
         qApp.setOverrideCursor(Qt.WaitCursor)
         self.cleanup()
@@ -96,7 +99,7 @@ class AuthWidget(QWebEngineView):
         self.authn_session_page.setUrl(QUrl(self.auth_url.toString() + "/authn/preauth"))
 
     def logout(self):
-        if not (self.auth_url.host() and self.auth_url.scheme()):
+        if not (self.auth_url and (self.auth_url.host() and self.auth_url.scheme())):
             return
         if not self.authenticated:
             return
