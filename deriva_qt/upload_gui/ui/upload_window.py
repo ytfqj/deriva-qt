@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
 
     def getSession(self):
         qApp.setOverrideCursor(Qt.WaitCursor)
-        self.updateStatus("Validating session: %s" % self.uploader.server["host"])
+        logging.debug("Validating session: %s" % self.uploader.server["host"])
         queryTask = SessionQueryTask(self.uploader)
         queryTask.status_update_signal.connect(self.onSessionResult)
         queryTask.query()
