@@ -188,7 +188,7 @@ class AuthWidget(QWebEngineView):
             cred_entry = dict()
             cred_entry[host] = self.credential
             if self.credential_file:
-                creds = read_credential(self.credential_file)
+                creds = read_credential(self.credential_file, create_default=True)
                 creds.update(cred_entry)
                 write_credential(self.credential_file, creds)
             self._session.cookies.set(self.authn_cookie_name, cookie_val, domain=host, path='/')
