@@ -1,11 +1,13 @@
 import logging
 from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QWidget, QMainWindow, QMessageBox, QStatusBar, QVBoxLayout, QSystemTrayIcon, QStyle, qApp, \
     QTabWidget, QAction, QToolBar, QSizePolicy, QHBoxLayout, QLabel, QComboBox, QSplitter
 
 from deriva_common import read_config, write_config, DEFAULT_CREDENTIAL_FILE
 from deriva_qt.common import log_widget
 from deriva_qt.auth_agent.ui.auth_widget import AuthWidget, DEFAULT_CONFIG, DEFAULT_CONFIG_FILE
+from deriva_qt.auth_agent.resources import resources
 
 
 class AuthWindow(QMainWindow):
@@ -22,8 +24,10 @@ class AuthWindow(QMainWindow):
         self.authentication_success_callback = \
             self.successCallback if not authentication_success_callback else authentication_success_callback
 
+        self.window_icon = QIcon(":/images/keys.png")
+        qApp.setWindowIcon(QIcon(self.window_icon))
         self.systemTrayIcon = QSystemTrayIcon(self)
-        self.systemTrayIcon.setIcon(qApp.style().standardIcon(QStyle.SP_TitleBarMenuButton))
+        self.systemTrayIcon.setIcon(self.window_icon)
         self.systemTrayIcon.setVisible(True)
         self.systemTrayIcon.activated.connect(self.on_systemTrayIcon_activated)
 
@@ -41,7 +45,7 @@ class AuthWindow(QMainWindow):
         for i in range(self.ui.tabWidget.count()):
             widget = self.ui.tabWidget.widget(i)
             if isinstance(widget, AuthWidget):
-                if widget.authenticated:
+                if widget.authenticated():
                     authenticated = True
         return authenticated
 
@@ -52,8 +56,7 @@ class AuthWindow(QMainWindow):
                 widget.logout()
 
     def successCallback(self, **kwargs):
-       # self.setWindowState(Qt.WindowMinimized)
-        pass
+        self.updateSystrayTooltip()
 
     def populateServerList(self):
         for server in self.config.get("servers", []):
@@ -70,11 +73,25 @@ class AuthWindow(QMainWindow):
         self.config["servers"] = servers
         return self.config
 
+    def getAuthenticatedServers(self):
+        servers = list()
+        for i in range(self.ui.tabWidget.count()):
+            widget = self.ui.tabWidget.widget(i)
+            if isinstance(widget, AuthWidget):
+                if widget.authenticated():
+                    servers.append(self.ui.tabWidget.tabText(i))
+        return servers
+
     def addAuthTab(self, config, credential_file, cookie_persistence, success_callback):
         authWidget = AuthWidget(self, config, credential_file, cookie_persistence)
         authWidget.setSuccessCallback(success_callback)
         authWidget.setObjectName("authWidget")
-        return self.ui.tabWidget.addTab(authWidget, authWidget.auth_url.host())
+        index = self.ui.tabWidget.addTab(authWidget, authWidget.auth_url.host())
+        return index
+
+    def updateSystrayTooltip(self):
+        tooltip = "DERIVA Authenticated:\n%s" % "\n".join(self.getAuthenticatedServers())
+        self.systemTrayIcon.setToolTip(tooltip)
 
     @pyqtSlot(int)
     def onTabChanged(self, index):
@@ -91,6 +108,7 @@ class AuthWindow(QMainWindow):
             widget.logout()
             del widget
         self.ui.tabWidget.removeTab(index)
+        self.updateSystrayTooltip()
 
     @pyqtSlot(int)
     def onServerListChanged(self, item):
@@ -215,7 +233,6 @@ class AuthWindow(QMainWindow):
         super(AuthWindow, self).changeEvent(event)
 
     def closeEvent(self, event):
-        self.systemTrayIcon.hide()
         if not self.authenticated():
             return
 
@@ -231,6 +248,7 @@ class AuthWindow(QMainWindow):
             event.ignore()
             return
         self.logout()
+        self.systemTrayIcon.hide()
 
 
 class AuthWindowUI(object):
@@ -238,6 +256,7 @@ class AuthWindowUI(object):
     def __init__(self, MainWin):
         # Main Window
         MainWin.setObjectName("AuthWindow")
+        MainWin.setWindowIcon(MainWin.window_icon)
         MainWin.setWindowTitle(MainWin.tr("DERIVA Authentication Agent"))
         MainWin.resize(1024, 860)
         self.config = MainWin.config

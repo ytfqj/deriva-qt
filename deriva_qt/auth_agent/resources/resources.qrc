@@ -1,6 +1,6 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
   <qresource prefix="/images">
-      <file alias="upload.png">images/upload.png</file>
+      <file alias="keys.png">images/keys.png</file>
   </qresource>
 </RCC>
