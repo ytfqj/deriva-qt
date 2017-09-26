@@ -164,7 +164,7 @@ class AuthWidget(QWebEngineView):
     def _onLoadFinished(self, result):
         qApp.restoreOverrideCursor()
         if not result:
-            logging.error("Page load error: %s" % self.authn_session_page.url().toDisplayString())
+            logging.debug("Page load error: %s" % self.authn_session_page.url().toDisplayString())
             self.setPage(self.authn_session_page)
             return
         if self.authn_session_page.url().path() == "/authn/preauth":
