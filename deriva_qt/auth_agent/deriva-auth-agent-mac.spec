@@ -22,7 +22,7 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
-          name='Deriva Upload',
+          name='DERIVA-Auth',
           strip=False,
           upx=False,
           debug=env.get("DEBUG", False),
@@ -38,7 +38,7 @@ coll = COLLECT(exe,
                name='DERIVA-Auth')
 
 app = BUNDLE(coll,
-         name='DERIVA Authentication Agent.app',
+         name='DERIVA-Auth.app',
          icon='./resources/images/keys.icns',
          bundle_identifier='org.qt-project.Qt.QtWebEngineCore',
          info_plist={

@@ -24,9 +24,9 @@ exe = EXE(pyz,
           a.binaries,
           a.zipfiles,
           a.datas,
-          name='Deriva Upload',
+          name='DERIVA-Upload',
           strip=False,
           upx=False,
           debug=env.get("DEBUG", False),
           console=env.get("DEBUG", False),
-          icon='./images/upload.ico')
+          icon='./resources/images/upload.ico')
