@@ -228,7 +228,9 @@ class AuthWindow(QMainWindow):
             if self.windowState() & Qt.WindowMinimized:
                 event.ignore()
                 self.hide()
-                self.systemTrayIcon.showMessage('DERIVA Authentication Agent', 'Running in the background.')
+                self.systemTrayIcon.showMessage('DERIVA Authentication Agent',
+                                                'Running in the background.',
+                                                self.window_icon)
                 return
 
         super(AuthWindow, self).changeEvent(event)
