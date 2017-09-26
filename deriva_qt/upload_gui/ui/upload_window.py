@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import qApp, QMainWindow, QWidget, QAction, QSizePolicy, QP
 from deriva_common import write_config, stob
 from deriva_qt.common import log_widget, table_widget, async_task
 from deriva_qt.auth_agent.ui.embedded_auth_window import EmbeddedAuthWindow
-from deriva_qt.upload_gui import resources
+from deriva_qt.upload_gui.resources import resources
 from deriva_qt.upload_gui.impl.upload_tasks import *
 from deriva_qt.upload_gui.ui.options_window import OptionsDialog
 
