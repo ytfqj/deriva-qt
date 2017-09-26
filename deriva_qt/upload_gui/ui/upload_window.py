@@ -305,6 +305,7 @@ class MainWindow(QMainWindow):
             self.ui.actionLogin.setEnabled(False)
             if self.current_path:
                 self.ui.actionUpload.setEnabled(True)
+            self.updateStatus("Logged in.")
             self.updateConfig()
         else:
             self.updateStatus("Login required.")
