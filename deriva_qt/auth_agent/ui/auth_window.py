@@ -1,3 +1,4 @@
+import sys
 import logging
 from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot
 from PyQt5.QtGui import QIcon
@@ -272,6 +273,9 @@ class AuthWindowUI(object):
         self.tabWidget.currentChanged.connect(MainWin.onTabChanged)
         self.tabWidget.tabCloseRequested.connect(MainWin.onTabClosed)
         self.tabWidget.setTabsClosable(True)
+        # workaround for https://bugreports.qt.io/browse/QTBUG-58267
+        if "darwin" in sys.platform:
+            self.tabWidget.setDocumentMode(True)
 
         # Splitter for log
         self.splitter = QSplitter(Qt.Vertical)
