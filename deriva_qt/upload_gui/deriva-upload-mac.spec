@@ -36,7 +36,7 @@ coll = COLLECT(exe,
                a.datas,
                strip=False,
                upx=False,
-               name='DERIVA-Auth-%s' % __version__,)
+               name='DERIVA-Auth-%s' % GenericUploader.getVersion())
 
 app = BUNDLE(coll,
          name='DERIVA-Auth-%s.app' % __version__,
