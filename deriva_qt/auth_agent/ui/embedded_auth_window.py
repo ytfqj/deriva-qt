@@ -27,6 +27,9 @@ class EmbeddedAuthWindow(QMainWindow):
         self.ui.authWidget.logout()
 
     def successCallback(self, **kwargs):
+        host = kwargs.get("host")
+        if host:
+            self.statusBar().showMessage("Authenticated: %s" % host)
         self.hide()
 
     def changeEvent(self, event):

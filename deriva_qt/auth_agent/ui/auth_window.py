@@ -57,6 +57,9 @@ class AuthWindow(QMainWindow):
                 widget.logout()
 
     def successCallback(self, **kwargs):
+        host = kwargs.get("host")
+        if host:
+            self.statusBar().showMessage("Authenticated: %s" % host)
         self.updateSystrayTooltip()
 
     def populateServerList(self):
@@ -101,6 +104,7 @@ class AuthWindow(QMainWindow):
         index = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
         if (index != -1) and (index != cur):
             self.ui.serverComboBox.setCurrentIndex(index)
+        self.statusBar().showMessage("Authenticated: %s" % host)
 
     @pyqtSlot(int)
     def onTabClosed(self, index):

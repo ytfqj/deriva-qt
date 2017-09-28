@@ -3,6 +3,7 @@
 block_cipher = None
 
 from os import environ as env
+from deriva_io.generic_uploader import GenericUploader
 
 a = Analysis(['./upload_app.py'],
              pathex=[],
@@ -24,7 +25,7 @@ exe = EXE(pyz,
           a.binaries,
           a.zipfiles,
           a.datas,
-          name='DERIVA-Upload',
+          name='DERIVA-Auth-%s' % __version__,
           strip=False,
           upx=False,
           debug=env.get("DEBUG", False),

@@ -3,6 +3,7 @@
 block_cipher = None
 
 from os import environ as env
+from deriva_qt import __version__
 
 a = Analysis(['./__main__.py'],
              pathex=[],
@@ -23,7 +24,7 @@ exe = EXE(pyz,
           a.binaries,
           a.zipfiles,
           a.datas,
-          name='DERIVA-Auth',
+          name='DERIVA-Auth-%s' % __version__,
           strip=False,
           upx=False,
           debug=env.get("DEBUG", False),

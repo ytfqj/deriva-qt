@@ -36,10 +36,10 @@ coll = COLLECT(exe,
                a.datas,
                strip=False,
                upx=False,
-               name='DERIVA-Upload')
+               name='DERIVA-Auth-%s' % __version__,)
 
 app = BUNDLE(coll,
-         name='DERIVA-Upload.app',
+         name='DERIVA-Auth-%s.app' % __version__,
          icon='./resources/images/upload.icns',
          bundle_identifier='org.qt-project.Qt.QtWebEngineCore',
          info_plist={
