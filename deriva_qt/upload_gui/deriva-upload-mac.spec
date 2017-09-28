@@ -23,7 +23,7 @@ pyz = PYZ(a.pure, a.zipped_data,
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
-          name='DERIVA-Upload',
+          name=DERIVA-Upload-%s' % GenericUploader.getVersion(),
           strip=False,
           upx=False,
           debug=env.get("DEBUG", False),
@@ -36,10 +36,10 @@ coll = COLLECT(exe,
                a.datas,
                strip=False,
                upx=False,
-               name='DERIVA-Auth-%s' % GenericUploader.getVersion())
+               name='DERIVA-Upload-%s' % GenericUploader.getVersion())
 
 app = BUNDLE(coll,
-         name='DERIVA-Auth-%s.app' % __version__,
+         name='DERIVA-Upload-%s.app' % GenericUploader.getVersion(),
          icon='./resources/images/upload.icns',
          bundle_identifier='org.qt-project.Qt.QtWebEngineCore',
          info_plist={
