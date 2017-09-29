@@ -104,7 +104,10 @@ class AuthWindow(QMainWindow):
         index = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
         if (index != -1) and (index != cur):
             self.ui.serverComboBox.setCurrentIndex(index)
-        self.statusBar().showMessage("Authenticated: %s" % host)
+        if host:
+            self.statusBar().showMessage("Authenticated: %s" % host)
+        else:
+            self.statusBar().clearMessage()
 
     @pyqtSlot(int)
     def onTabClosed(self, index):
