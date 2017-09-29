@@ -1,6 +1,7 @@
 import sys
 import logging
-from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot
+from pkg_resources import parse_version
+from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot, qVersion
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QWidget, QMainWindow, QMessageBox, QStatusBar, QVBoxLayout, QSystemTrayIcon, QStyle, qApp, \
     QTabWidget, QAction, QToolBar, QSizePolicy, QHBoxLayout, QLabel, QComboBox, QSplitter
@@ -235,9 +236,13 @@ class AuthWindow(QMainWindow):
             if self.windowState() & Qt.WindowMinimized:
                 event.ignore()
                 self.hide()
-                self.systemTrayIcon.showMessage('DERIVA Authentication Agent',
-                                                'Running in the background.',
-                                                self.window_icon)
+                title = 'DERIVA Authentication Agent'
+                msg = 'Running in the background.'
+                qtVersion = qVersion()
+                if parse_version(qtVersion) > parse_version("5.9.0"):
+                    self.systemTrayIcon.showMessage(title, msg, self.window_icon)
+                else:
+                    self.systemTrayIcon.showMessage(title, msg)
                 return
 
         super(AuthWindow, self).changeEvent(event)
