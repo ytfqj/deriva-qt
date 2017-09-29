@@ -38,7 +38,7 @@ coll = COLLECT(exe,
                name='DERIVA-Auth-%s' % __version__,)
 
 app = BUNDLE(coll,
-         name='DERIVA-Auth-%s.app' % __version__,,
+         name='DERIVA-Auth-%s.app' % __version__,
          icon='./resources/images/keys.icns',
          bundle_identifier='org.qt-project.Qt.QtWebEngineCore',
          info_plist={

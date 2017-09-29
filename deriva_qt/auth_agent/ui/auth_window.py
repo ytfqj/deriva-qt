@@ -248,7 +248,7 @@ class AuthWindow(QMainWindow):
         msg.setWindowTitle("Confirm Action")
         msg.setText("Are you sure you wish to exit?")
         msg.setDetailedText("If you close the application, your credentials will not be automatically refreshed "
-                            "and will be invalidated once the credential expiration time is reached.")
+                            "and will be invalidated once the application has exited.")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         ret = msg.exec_()
         if ret == QMessageBox.No:
