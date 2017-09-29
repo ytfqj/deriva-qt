@@ -22,7 +22,7 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
-          name='DERIVA-Auth',
+          name='DERIVA-Auth-%s' % __version__,,
           strip=False,
           upx=False,
           debug=env.get("DEBUG", False),
