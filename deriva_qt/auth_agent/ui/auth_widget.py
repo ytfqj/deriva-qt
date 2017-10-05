@@ -139,11 +139,10 @@ class AuthWidget(QWebEngineView):
             self.authn_session = json.loads(content)
             seconds_remaining = self.authn_session['seconds_remaining']
             if not self._timer.isActive():
-                seconds_remaining = seconds_remaining // 2
-                refresh = seconds_remaining * 1000
+                interval = seconds_remaining // 2
                 logging.info("Authentication successful for [%s]: credential refresh in %d seconds." %
-                             (self.auth_url.toString(), seconds_remaining))
-                self._timer.start(refresh)
+                             (self.auth_url.toString(), interval))
+                self._timer.start(interval * 1000)
             self.authn_expires = time.time() + seconds_remaining + 1
             logging.debug("webauthn session:\n%s\n", json.dumps(self.authn_session, indent=2))
             qApp.restoreOverrideCursor()
