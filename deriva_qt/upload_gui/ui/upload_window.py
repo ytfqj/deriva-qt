@@ -422,7 +422,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def on_actionLogout_triggered(self):
         self.setWindowTitle("%s (%s)" % (self.ui.title, self.uploader.server["host"]))
-        self.auth_window.logout()
+        self.auth_window.logout(delete_cookies=True)
         self.identity = None
         self.ui.actionUpload.setEnabled(False)
         self.ui.actionLogout.setEnabled(False)
@@ -440,12 +440,29 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def on_actionExit_triggered(self):
         self.closeEvent()
-        QCoreApplication.quit()
+        qApp.quit()
 
     def quitEvent(self):
-        qApp.closeAllWindows()
         if self.auth_window:
-            self.auth_window.logout()
+            self.auth_window.logout(self.logoutConfirmation())
+        qApp.closeAllWindows()
+
+    def logoutConfirmation(self):
+        if self.auth_window and not self.auth_window.cookie_persistence:
+            return
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Confirm Action")
+        msg.setText("Do you wish to completely logout of the system?")
+        msg.setInformativeText("Selecting \"Yes\" will clear the login state and invalidate the current user identity."
+                               "\n\nSelecting \"No\" will keep your current identity cached, which will allow you to "
+                               "log back in without authenticating until your session expires.\n\nNOTE: Select \"Yes\" "
+                               "if this is a shared system using a single user account.")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        ret = msg.exec_()
+        if ret == QMessageBox.Yes:
+            return True
+        return False
 
     @staticmethod
     def cancelConfirmation():

@@ -61,6 +61,7 @@ class AuthWindow(QMainWindow):
         host = kwargs.get("host")
         if host:
             self.statusBar().showMessage("Authenticated: %s" % host)
+        self.ui.actionShowToken.setEnabled(True)
         self.updateSystrayTooltip()
 
     def populateServerList(self):
@@ -105,9 +106,15 @@ class AuthWindow(QMainWindow):
         index = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
         if (index != -1) and (index != cur):
             self.ui.serverComboBox.setCurrentIndex(index)
-        if host:
+        widget = self.ui.tabWidget.widget(index)
+        authenticated = False
+        if isinstance(widget, AuthWidget):
+            if widget.authenticated():
+                authenticated = True
+        if host and authenticated:
             self.statusBar().showMessage("Authenticated: %s" % host)
         else:
+            self.ui.actionShowToken.setEnabled(False)
             self.statusBar().clearMessage()
 
     @pyqtSlot(int)
@@ -176,6 +183,26 @@ class AuthWindow(QMainWindow):
 
         config = self.getConfiguredServers()
         write_config(DEFAULT_CONFIG_FILE, config)
+
+    @pyqtSlot()
+    def on_actionShowToken_triggered(self):
+        token = None
+        widget = self.ui.tabWidget.currentWidget()
+        if isinstance(widget, AuthWidget):
+            token = widget.token
+        if not token:
+            return
+        host = self.ui.serverComboBox.currentText()
+
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setWindowTitle("Display Authentication Token: %s" % host)
+        msg.setText("Click \"Show Details...\" to reveal your bearer token for host: [%s]\n\n"
+                    "This bearer token can be used to authenticate with DERIVA services on this host until the "
+                    "credential lifetime expires." % host)
+        msg.setDetailedText(token)
+        msg.setStandardButtons(QMessageBox.Close)
+        msg.exec_()
 
     @pyqtSlot()
     def on_actionLogin_triggered(self):
@@ -348,6 +375,14 @@ class AuthWindowUI(object):
         self.actionRemove.setToolTip(MainWin.tr("Remove from server list"))
         self.actionRemove.setShortcut(MainWin.tr("Ctrl+X"))
 
+        # Show Token
+        self.actionShowToken = QAction(MainWin)
+        self.actionShowToken.setEnabled(False)
+        self.actionShowToken.setObjectName("actionShowToken")
+        self.actionShowToken.setText(MainWin.tr("Show Token"))
+        self.actionShowToken.setToolTip(MainWin.tr("Display the current authentication token"))
+        self.actionShowToken.setShortcut(MainWin.tr("Ctrl+S"))
+
         # Login
         self.actionLogin = QAction(MainWin)
         self.actionLogin.setObjectName("actionLogin")
@@ -369,6 +404,10 @@ class AuthWindowUI(object):
         # Remove
         self.mainToolBar.addAction(self.actionRemove)
         self.actionRemove.setIcon(qApp.style().standardIcon(QStyle.SP_DialogDiscardButton))
+
+        # Show Token
+        self.mainToolBar.addAction(self.actionShowToken)
+        self.actionShowToken.setIcon(qApp.style().standardIcon(QStyle.SP_FileDialogInfoView))
         self.mainToolBar.addSeparator()
 
         # this spacer right justifies everything that comes after it

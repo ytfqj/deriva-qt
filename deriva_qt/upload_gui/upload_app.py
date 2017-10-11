@@ -61,7 +61,11 @@ class DerivaUploadGUI(BaseCLI):
     def main(self):
         sys.excepthook = DerivaUploadGUI.excepthook
         sys.stderr.write("\n")
+        self.parser.add_argument(
+            "--no-persistence", action="store_true",
+            help="Disable cookie and local storage persistence for QtWebEngine.")
         args = self.parse_cli()
+        self.cookie_persistence = not args.no_persistence
         try:
             self.upload_gui(self.uploader,
                             config_file=args.config_file,

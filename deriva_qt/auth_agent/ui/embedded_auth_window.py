@@ -16,6 +16,7 @@ class EmbeddedAuthWindow(QMainWindow):
         success_callback = \
             self.successCallback if not authentication_success_callback else authentication_success_callback
         self.ui = EmbeddedAuthWindowUI(self, config, credential_file, cookie_persistence, success_callback)
+        self.cookie_persistence = cookie_persistence
 
     def authenticated(self):
         return self.ui.authWidget.authenticated()
@@ -23,8 +24,8 @@ class EmbeddedAuthWindow(QMainWindow):
     def login(self):
         self.ui.authWidget.login()
 
-    def logout(self):
-        self.ui.authWidget.logout()
+    def logout(self, delete_cookies=False):
+        self.ui.authWidget.logout(delete_cookies)
 
     def successCallback(self, **kwargs):
         host = kwargs.get("host")
