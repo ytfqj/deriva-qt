@@ -37,7 +37,8 @@ class MainWindow(QMainWindow):
         qApp.aboutToQuit.connect(self.quitEvent)
 
         self.ui = MainWindowUI(self)
-        self.ui.title = window_title if window_title else "Deriva Upload"
+        self.ui.title = window_title if window_title else "Deriva Upload Utility %s" % uploader.getVersion()
+        self.setWindowTitle(self.ui.title)
 
         self.config_file = config_file
         self.credential_file = credential_file
@@ -131,6 +132,7 @@ class MainWindow(QMainWindow):
             event.accept()
 
     def checkValidServer(self):
+        qApp.restoreOverrideCursor()
         if self.uploader.server and self.uploader.server.get("host"):
             return True
         msg = QMessageBox()

@@ -7,7 +7,7 @@ import os.path
 #
 # Settings file for dmgbuild
 #
-application = defines.get('app', './dist/DERIVA-Auth.app')
+application = defines.get('app', '')
 appname = os.path.basename(application)
 
 def icon_from_app(app_path):
