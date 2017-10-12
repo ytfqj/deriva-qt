@@ -12,7 +12,11 @@ from deriva_qt.upload_gui.ui import upload_window
 
 class DerivaUploadGUI(BaseCLI):
     def __init__(self, uploader, description, epilog, cookie_persistence=True, window_icon=":/images/upload.png"):
-        BaseCLI.__init__(self, description, epilog)
+
+        if not issubclass(uploader, DerivaUpload):
+            raise TypeError("DerivaUpload subclass required")
+
+        BaseCLI.__init__(self, description, epilog, uploader.getVersion())
         self.uploader = uploader
         self.cookie_persistence = cookie_persistence
         self.window_icon = window_icon
@@ -25,9 +29,6 @@ class DerivaUploadGUI(BaseCLI):
                    window_title=None,
                    window_icon=None,
                    cookie_persistence=True):
-
-        if not issubclass(uploader, DerivaUpload):
-            raise TypeError("DerivaUpload subclass required")
 
         QApplication.setDesktopSettingsAware(False)
         QApplication.setStyle(QStyleFactory.create("Fusion"))
@@ -71,7 +72,7 @@ class DerivaUploadGUI(BaseCLI):
                             config_file=args.config_file,
                             credential_file=args.credential_file,
                             hostname=args.host,
-                            window_title=self.parser.description,
+                            window_title="%s %s" % (self.parser.description, self.uploader.getVersion()),
                             window_icon=self.window_icon,
                             cookie_persistence=self.cookie_persistence)
         finally:

@@ -4,6 +4,7 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QStyleFactory, QMessageBox
 from deriva_common import read_config, format_exception
 from deriva_common.base_cli import BaseCLI
+import deriva_qt
 from deriva_qt.auth_agent.ui.auth_window import AuthWindow
 
 
@@ -27,9 +28,9 @@ def main():
     app = QApplication(sys.argv)
     app.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
     app.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
-
+    sys.stderr.write("\n")
     cli = BaseCLI("DERIVA Authentication Agent",
-                  "For more information see: https://github.com/informatics-isi-edu/deriva-qt")
+                  "For more information see: https://github.com/informatics-isi-edu/deriva-qt", deriva_qt.__version__)
     cli.parser.add_argument(
         "--no-persistence", action="store_true",
         help="Disable cookie and local storage persistence for QtWebEngine.")

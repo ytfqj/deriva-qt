@@ -1,6 +1,7 @@
 from PyQt5.QtCore import Qt, QEvent, QMetaObject
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QWidget, QMainWindow, QStatusBar, QVBoxLayout
+import deriva_qt
 from deriva_qt.auth_agent.ui.auth_widget import AuthWidget
 from deriva_qt.auth_agent.resources import resources
 
@@ -53,7 +54,7 @@ class EmbeddedAuthWindowUI(object):
         # Main Window
         MainWin.setObjectName("EmbeddedAuthWindow")
         MainWin.setWindowIcon(QIcon(":/images/keys.png"))
-        MainWin.setWindowTitle(MainWin.tr("DERIVA Authentication Agent"))
+        MainWin.setWindowTitle(MainWin.tr("DERIVA Authentication Agent %s" % deriva_qt.__version__))
         MainWin.resize(1024, 745)
         self.centralWidget = QWidget(MainWin)
         self.centralWidget.setObjectName("centralWidget")

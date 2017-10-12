@@ -2,7 +2,7 @@ import os
 
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, \
-    QGroupBox, QRadioButton, QComboBox, QCheckBox, QMessageBox, qApp
+    QGroupBox, QRadioButton, QComboBox, QCheckBox, QMessageBox, QDialogButtonBox, qApp
 from deriva_qt.common.json_editor import JSONEditor
 from deriva_io.generic_uploader import GenericUploader
 from deriva_common import stob
@@ -55,6 +55,10 @@ class OptionsDialog(QDialog):
         self.editServerButton.clicked.connect(self.onServerEdit)
         self.editServerButton.setEnabled(self.serversConfigurable)
         self.serverLayout.addWidget(self.editServerButton)
+        self.removeServerButton = QPushButton("Remove", parent)
+        self.removeServerButton.clicked.connect(self.onServerRemove)
+        self.removeServerButton.setEnabled(self.serversConfigurable)
+        self.serverLayout.addWidget(self.removeServerButton)
         self.serversGroupBox.setLayout(self.serverLayout)
         layout.addWidget(self.serversGroupBox)
 
@@ -91,6 +95,15 @@ class OptionsDialog(QDialog):
         self.uploadLayout.addWidget(self.uploadDataButton)
         self.uploadGroupBox.setLayout(self.uploadLayout)
         layout.addWidget(self.uploadGroupBox)
+
+        # Button Box
+        self.buttonBox = QDialogButtonBox(parent)
+        self.buttonBox.setObjectName("buttonBox")
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Ok)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        layout.addWidget(self.buttonBox)
 
         self.populateServers()
 
@@ -149,8 +162,19 @@ class OptionsDialog(QDialog):
         index = self.serverComboBox.currentIndex()
         server = self.serverComboBox.itemData(index, Qt.UserRole)
         server = ServerDialog.configureServer(self.parent(), server if server else {})
+        if not server:
+            return
         self.serverComboBox.setItemData(index, server, Qt.UserRole)
         self.updateDefaultServer(index)
+
+    @pyqtSlot()
+    def onServerRemove(self):
+        index = self.serverComboBox.currentIndex()
+        self.serverComboBox.removeItem(index)
+        for x in range(self.serverComboBox.count()):
+            current = self.serverComboBox.itemData(x, Qt.UserRole)
+            if current["default"] is True:
+                self.serverComboBox.setCurrentIndex(x)
 
     @pyqtSlot()
     def onServerChanged(self):
@@ -208,18 +232,19 @@ class OptionsDialog(QDialog):
     def getOptions(parent):
         uploader = parent.uploader
         dialog = OptionsDialog(parent)
-        dialog.exec_()
-        setServers = getattr(uploader, "setServers", None)
-        if callable(setServers):
-            setServers(dialog.getServers())
-        current_server = dialog.serverComboBox.currentData(Qt.UserRole)
-        if current_server != uploader.server:
-            parent.onServerChanged(current_server)
-            return
-        if dialog.reconfigure:
-            qApp.setOverrideCursor(Qt.WaitCursor)
-            uploader.initialize(cleanup=False)
-            qApp.restoreOverrideCursor()
+        ret = dialog.exec_()
+        if QDialog.Accepted == ret:
+            setServers = getattr(uploader, "setServers", None)
+            if callable(setServers):
+                setServers(dialog.getServers())
+            current_server = dialog.serverComboBox.currentData(Qt.UserRole)
+            if current_server != uploader.server:
+                parent.onServerChanged(current_server)
+                return
+            if dialog.reconfigure:
+                qApp.setOverrideCursor(Qt.WaitCursor)
+                uploader.initialize(cleanup=False)
+                qApp.restoreOverrideCursor()
         del dialog
 
 
@@ -232,13 +257,15 @@ class ServerDialog(QDialog):
         self.setMinimumWidth(400)
         layout = QVBoxLayout(self)
 
+        self.serverLayout = QVBoxLayout(self)
+        self.serverGroupBox = QGroupBox("Server:", self)
         self.hostnameLayout = QHBoxLayout()
         self.hostnameLabel = QLabel("Host:")
         self.hostnameLayout.addWidget(self.hostnameLabel)
         self.hostnameTextBox = QLineEdit()
         self.hostnameTextBox.setText(server.get("host", ""))
         self.hostnameLayout.addWidget(self.hostnameTextBox)
-        layout.addLayout(self.hostnameLayout)
+        self.serverLayout.addLayout(self.hostnameLayout)
 
         self.descriptionLayout = QHBoxLayout()
         self.descriptionLabel = QLabel("Description:")
@@ -246,7 +273,7 @@ class ServerDialog(QDialog):
         self.descriptionTextBox = QLineEdit()
         self.descriptionTextBox.setText(server.get("desc", ""))
         self.descriptionLayout.addWidget(self.descriptionTextBox)
-        layout.addLayout(self.descriptionLayout)
+        self.serverLayout.addLayout(self.descriptionLayout)
 
         self.catalogIDLayout = QHBoxLayout()
         self.catalogIDLabel = QLabel("Catalog ID:")
@@ -254,10 +281,13 @@ class ServerDialog(QDialog):
         self.catalogIDTextBox = QLineEdit()
         self.catalogIDTextBox.setText(str(server.get("catalog_id", 1)))
         self.catalogIDLayout.addWidget(self.catalogIDTextBox)
-        layout.addLayout(self.catalogIDLayout)
+        self.serverLayout.addLayout(self.catalogIDLayout)
+        self.serverGroupBox.setLayout(self.serverLayout)
+        layout.addWidget(self.serverGroupBox)
 
         setServers = getattr(parent.uploader, "setServers", None)
         self.serversConfigurable = True if callable(setServers) else False
+        self.serverOptionsGroupBox = QGroupBox("Options:", self)
         self.checkboxLayout = QHBoxLayout()
         self.defaultServer = QCheckBox("Set as &Default", parent)
         self.defaultServer.setChecked(stob(server.get("default", False)))
@@ -267,7 +297,17 @@ class ServerDialog(QDialog):
         self.confirm_updates.setChecked(stob(server.get("confirm_updates", False)))
         self.confirm_updates.setEnabled(self.serversConfigurable)
         self.checkboxLayout.addWidget(self.confirm_updates)
-        layout.addLayout(self.checkboxLayout)
+        self.serverOptionsGroupBox.setLayout(self.checkboxLayout)
+        layout.addWidget(self.serverOptionsGroupBox)
+
+        # Button Box
+        self.buttonBox = QDialogButtonBox(parent)
+        self.buttonBox.setObjectName("buttonBox")
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        layout.addWidget(self.buttonBox)
 
     def validate(self):
         hostname = self.hostnameTextBox.text()
@@ -292,8 +332,8 @@ class ServerDialog(QDialog):
     @staticmethod
     def configureServer(parent, server):
         dialog = ServerDialog(parent, server)
-        dialog.exec_()
-        if dialog.validate():
-            return dialog.server.copy()
-        else:
-            return None
+        ret = dialog.exec_()
+        if QDialog.Accepted == ret:
+            if dialog.validate():
+                return dialog.server.copy()
+        return None

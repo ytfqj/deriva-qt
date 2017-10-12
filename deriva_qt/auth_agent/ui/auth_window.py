@@ -7,12 +7,15 @@ from PyQt5.QtWidgets import QWidget, QMainWindow, QMessageBox, QStatusBar, QVBox
     QTabWidget, QAction, QToolBar, QSizePolicy, QHBoxLayout, QLabel, QComboBox, QSplitter
 
 from deriva_common import read_config, write_config, DEFAULT_CREDENTIAL_FILE
+import deriva_qt
 from deriva_qt.common import log_widget
 from deriva_qt.auth_agent.ui.auth_widget import AuthWidget, DEFAULT_CONFIG, DEFAULT_CONFIG_FILE
 from deriva_qt.auth_agent.resources import resources
 
 
 class AuthWindow(QMainWindow):
+
+    window_title = 'DERIVA Authentication Agent %s' % deriva_qt.__version__
 
     def __init__(self,
                  config,
@@ -263,7 +266,7 @@ class AuthWindow(QMainWindow):
             if self.windowState() & Qt.WindowMinimized:
                 event.ignore()
                 self.hide()
-                title = 'DERIVA Authentication Agent'
+                title = self.window_title
                 msg = 'Running in the background.'
                 qtVersion = qVersion()
                 if parse_version(qtVersion) > parse_version("5.9.0"):
@@ -299,7 +302,7 @@ class AuthWindowUI(object):
         # Main Window
         MainWin.setObjectName("AuthWindow")
         MainWin.setWindowIcon(MainWin.window_icon)
-        MainWin.setWindowTitle(MainWin.tr("DERIVA Authentication Agent"))
+        MainWin.setWindowTitle(MainWin.tr(MainWin.window_title))
         MainWin.resize(1024, 860)
         self.config = MainWin.config
         self.centralWidget = QWidget(MainWin)
