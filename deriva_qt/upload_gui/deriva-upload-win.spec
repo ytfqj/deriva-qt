@@ -5,7 +5,7 @@ block_cipher = None
 from os import environ as env
 from deriva_io.generic_uploader import GenericUploader
 
-a = Analysis(['./upload_app.py'],
+a = Analysis(['./__main__.py'],
              pathex=[],
              binaries=[],
              datas=[('conf/config.json', 'conf')],

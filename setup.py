@@ -19,7 +19,8 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'deriva-auth = deriva_qt.auth_agent.__main__:main'
+            'deriva-auth = deriva_qt.auth_agent.__main__:main',
+            'deriva-upload = deriva_qt.upload_gui.__main__:main'
         ]
     },
     requires=[

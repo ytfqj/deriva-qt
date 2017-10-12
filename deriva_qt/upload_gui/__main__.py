@@ -80,6 +80,10 @@ class DerivaUploadGUI(BaseCLI):
         return 0
 
 
-if __name__ == '__main__':
+def main():
     gui = DerivaUploadGUI(GenericUploader, DESC, INFO)
     sys.exit(gui.main())
+
+
+if __name__ == '__main__':
+    sys.exit(main())
