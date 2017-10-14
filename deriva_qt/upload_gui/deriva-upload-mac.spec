@@ -23,7 +23,7 @@ pyz = PYZ(a.pure, a.zipped_data,
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
-          name='DERIVA-Upload-%s' % GenericUploader.getVersion(),
+          name='DERIVA-Upload',
           strip=False,
           upx=False,
           debug=env.get("DEBUG", False),
@@ -36,14 +36,14 @@ coll = COLLECT(exe,
                a.datas,
                strip=False,
                upx=False,
-               name='DERIVA-Upload-%s' % GenericUploader.getVersion())
+               name='DERIVA-Upload')
 
 app = BUNDLE(coll,
-         name='DERIVA-Upload-%s.app' % GenericUploader.getVersion(),
+         name='DERIVA-Upload.app',
          icon='./resources/images/upload.icns',
          bundle_identifier='org.qt-project.Qt.QtWebEngineCore',
          info_plist={
-            'CFBundleDisplayName': 'Deriva Upload Utility',
+            'CFBundleDisplayName': 'DERIVA Upload Utility',
             'CFBundleShortVersionString':GenericUploader.getVersion(),
             'NSPrincipalClass':'NSApplication',
             'NSHighResolutionCapable': 'True'
