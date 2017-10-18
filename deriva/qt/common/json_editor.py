@@ -2,8 +2,7 @@ import sys
 
 from PyQt5.QtCore import Qt, QRegExp, QSize, QRect
 from PyQt5.QtGui import QSyntaxHighlighter, QTextCharFormat, QFont, QPainter, QColor, QTextFormat
-from PyQt5.QtWidgets import QMainWindow, QAction, QTextEdit, QFileDialog, QApplication, QWidget, QPlainTextEdit, \
-    QMessageBox, QDialog, QVBoxLayout
+from PyQt5.QtWidgets import QTextEdit, QApplication, QWidget, QPlainTextEdit, QMessageBox, QDialog, QVBoxLayout
 
 
 class JSONSyntaxHighlighter(QSyntaxHighlighter):

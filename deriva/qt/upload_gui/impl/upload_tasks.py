@@ -1,7 +1,7 @@
 from PyQt5.QtCore import pyqtSignal
-from deriva_common import format_exception, DEFAULT_HEADERS
-from deriva_io.deriva_upload import DerivaUpload
-from deriva_qt.common.async_task import async_execute, AsyncTask
+from deriva.core import format_exception
+from deriva.transfer import DerivaUpload
+from deriva.qt import async_execute, AsyncTask
 
 
 class UploadTask(AsyncTask):

@@ -1,13 +1,12 @@
 import sys
 import traceback
+
 from PyQt5 import QtCore
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QStyleFactory, QMessageBox
-from deriva_common import format_exception
-from deriva_common.base_cli import BaseCLI
-from deriva_io.deriva_upload import DerivaUpload
-from deriva_io.generic_uploader import GenericUploader, DESC, INFO
-from deriva_qt.upload_gui.ui import upload_window
+from deriva.core import format_exception, BaseCLI
+from deriva.transfer import DerivaUpload
+from deriva.qt import UploadWindow
 
 
 class DerivaUploadGUI(BaseCLI):
@@ -36,12 +35,12 @@ class DerivaUploadGUI(BaseCLI):
         if window_icon:
             app.setWindowIcon(QIcon(window_icon))
         app.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
-        window = upload_window.MainWindow(uploader,
-                                          config_file,
-                                          credential_file,
-                                          hostname,
-                                          window_title=window_title,
-                                          cookie_persistence=cookie_persistence)
+        window = UploadWindow(uploader,
+                              config_file,
+                              credential_file,
+                              hostname,
+                              window_title=window_title,
+                              cookie_persistence=cookie_persistence)
         window.show()
         ret = app.exec_()
 
@@ -78,12 +77,3 @@ class DerivaUploadGUI(BaseCLI):
         finally:
             sys.stderr.write("\n\n")
         return 0
-
-
-def main():
-    gui = DerivaUploadGUI(GenericUploader, DESC, INFO)
-    sys.exit(gui.main())
-
-
-if __name__ == '__main__':
-    sys.exit(main())

@@ -5,11 +5,11 @@ import requests
 import time
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from PyQt5.QtCore import Qt, QTimer, QUrl, QObject, QMetaMethod
+from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtWidgets import qApp
 from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
-from deriva_common import read_config, read_credential, write_credential, format_exception, \
+from deriva.core import read_config, read_credential, write_credential, format_exception, \
      DEFAULT_SESSION_CONFIG, DEFAULT_CREDENTIAL
 
 DEFAULT_CONFIG = {

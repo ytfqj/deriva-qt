@@ -3,7 +3,7 @@
 block_cipher = None
 
 from os import environ as env
-from deriva_qt import __version__
+from deriva.qt import __version__
 
 a = Analysis(['./__main__.py'],
              pathex=[''],

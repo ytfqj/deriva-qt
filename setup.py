@@ -3,24 +3,32 @@
 # Distributed under the GNU GPL 3.0 license. See LICENSE for more info.
 #
 
-""" Installation script for deriva_qt
+""" Installation script for deriva.qt
 """
 
 from setuptools import setup, find_packages
-from deriva_qt import __version__
+import re
+import io
+
+__version__ = re.search(
+    r'__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
+    io.open('deriva/qt/__init__.py', encoding='utf_8_sig').read()
+    ).group(1)
 
 setup(
-    name="deriva_qt",
+    name="deriva.qt",
     description="Graphical User Interface tools for DERIVA",
     url='https://github.com/informatics-isi-edu/deriva-qt',
     maintainer='USC Information Sciences Institute ISR Division',
     maintainer_email='misd-support@isi.edu',
     version=__version__,
     packages=find_packages(),
+    package_data={'deriva.qt': ['upload_gui/conf/config.json']},
+    namespace_packages=["deriva"],
     entry_points={
         'console_scripts': [
-            'deriva-auth = deriva_qt.auth_agent.__main__:main',
-            'deriva-upload = deriva_qt.upload_gui.__main__:main'
+            'deriva-auth = deriva.qt.auth_agent.__main__:main',
+            'deriva-upload = deriva.qt.upload_gui.__main__:main'
         ]
     },
     requires=[
@@ -28,8 +36,13 @@ setup(
         'sys',
         'logging',
         'requests',
-        'deriva_io',
+        'deriva.core',
+        'deriva.transfer',
         'PyQt5'],
+    install_requires=[
+        'setuptools',
+        'PyQt5'
+    ],
     license='GNU GPL 3.0',
     classifiers=[
         'Intended Audience :: Science/Research',

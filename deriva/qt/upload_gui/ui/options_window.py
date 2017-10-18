@@ -3,9 +3,9 @@ import os
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, \
     QGroupBox, QRadioButton, QComboBox, QCheckBox, QMessageBox, QDialogButtonBox, qApp
-from deriva_qt.common.json_editor import JSONEditor
-from deriva_io.generic_uploader import GenericUploader
-from deriva_common import stob
+from deriva.core import stob
+from deriva.transfer import GenericUploader
+from deriva.qt import JSONEditor
 
 
 def warningMessageBox(parent, text, detail):
