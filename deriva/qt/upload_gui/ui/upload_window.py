@@ -1,20 +1,20 @@
-import os
 import logging
-import webbrowser
+import os
 import urllib.parse
-from PyQt5.QtCore import Qt, QCoreApplication, QMetaObject, QThreadPool, pyqtSlot
+import webbrowser
+
+from PyQt5.QtCore import Qt, QMetaObject, QThreadPool, pyqtSlot, pyqtSignal
 from PyQt5.QtWidgets import qApp, QMainWindow, QWidget, QAction, QSizePolicy, QPushButton, QStyle, QSplitter, QLabel, \
     QToolBar, QStatusBar, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QAbstractItemView, QLineEdit, QFileDialog, \
     QMessageBox
-from deriva_common import write_config, stob
-from deriva_qt.common import log_widget, table_widget, async_task
-from deriva_qt.auth_agent.ui.embedded_auth_window import EmbeddedAuthWindow
-from deriva_qt.upload_gui.resources import resources
-from deriva_qt.upload_gui.impl.upload_tasks import *
-from deriva_qt.upload_gui.ui.options_window import OptionsDialog
+from deriva.core import write_config, stob
+from deriva.qt import EmbeddedAuthWindow, QPlainTextEditLogger, TableWidget, Request
+from deriva.qt.upload_gui.impl.upload_tasks import *
+from deriva.qt.upload_gui.ui.options_window import OptionsDialog
+from deriva.qt.upload_gui.resources import resources
 
 
-class MainWindow(QMainWindow):
+class UploadWindow(QMainWindow):
     uploader = None
     config_file = None
     credential_file = None
@@ -33,10 +33,10 @@ class MainWindow(QMainWindow):
                  hostname=None,
                  window_title=None,
                  cookie_persistence=True):
-        super(MainWindow, self).__init__()
+        super(UploadWindow, self).__init__()
         qApp.aboutToQuit.connect(self.quitEvent)
 
-        self.ui = MainWindowUI(self)
+        self.ui = UploadWindowUI(self)
         self.ui.title = window_title if window_title else "Deriva Upload Utility %s" % uploader.getVersion()
         self.setWindowTitle(self.ui.title)
 
@@ -163,7 +163,7 @@ class MainWindow(QMainWindow):
         qApp.setOverrideCursor(Qt.WaitCursor)
         self.save_progress_on_cancel = save_progress
         self.uploader.cancel()
-        async_task.Request.shutdown()
+        Request.shutdown()
         self.statusBar().showMessage("Waiting for background tasks to terminate...")
 
         while True:
@@ -484,14 +484,14 @@ class MainWindow(QMainWindow):
 
 
 # noinspection PyArgumentList
-class MainWindowUI(object):
+class UploadWindowUI(object):
 
     title = "DERIVA File Uploader"
 
     def __init__(self, MainWin):
 
         # Main Window
-        MainWin.setObjectName("MainWindow")
+        MainWin.setObjectName("UploadWindow")
         MainWin.setWindowTitle(MainWin.tr(self.title))
         MainWin.resize(800, 600)
         self.centralWidget = QWidget(MainWin)
@@ -517,7 +517,7 @@ class MainWindowUI(object):
         self.splitter = QSplitter(Qt.Vertical)
 
         # Table View (Upload list)
-        self.uploadList = table_widget.TableWidget(self.centralWidget)
+        self.uploadList = TableWidget(self.centralWidget)
         self.uploadList.setObjectName("uploadList")
         self.uploadList.setStyleSheet(
             """
@@ -536,7 +536,7 @@ class MainWindowUI(object):
         self.splitter.addWidget(self.uploadList)
 
         # Log Widget
-        self.logTextBrowser = log_widget.QPlainTextEditLogger(self.centralWidget)
+        self.logTextBrowser = QPlainTextEditLogger(self.centralWidget)
         self.logTextBrowser.widget.setObjectName("logTextBrowser")
         self.logTextBrowser.widget.setStyleSheet(
             """

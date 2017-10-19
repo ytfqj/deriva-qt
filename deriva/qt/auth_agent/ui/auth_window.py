@@ -1,21 +1,20 @@
-import sys
 import logging
+import sys
+
 from pkg_resources import parse_version
 from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot, qVersion
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QWidget, QMainWindow, QMessageBox, QStatusBar, QVBoxLayout, QSystemTrayIcon, QStyle, qApp, \
     QTabWidget, QAction, QToolBar, QSizePolicy, QHBoxLayout, QLabel, QComboBox, QSplitter
-
-from deriva_common import read_config, write_config, DEFAULT_CREDENTIAL_FILE
-import deriva_qt
-from deriva_qt.common import log_widget
-from deriva_qt.auth_agent.ui.auth_widget import AuthWidget, DEFAULT_CONFIG, DEFAULT_CONFIG_FILE
-from deriva_qt.auth_agent.resources import resources
+from deriva.core import read_config, write_config, DEFAULT_CREDENTIAL_FILE
+from deriva.qt import QPlainTextEditLogger, __version__ as VERSION
+from deriva.qt.auth_agent.ui.auth_widget import AuthWidget, DEFAULT_CONFIG, DEFAULT_CONFIG_FILE
+from deriva.qt.auth_agent.resources import resources
 
 
 class AuthWindow(QMainWindow):
 
-    window_title = 'DERIVA Authentication Agent %s' % deriva_qt.__version__
+    window_title = 'DERIVA Authentication Agent %s' % VERSION
 
     def __init__(self,
                  config,
@@ -326,7 +325,7 @@ class AuthWindowUI(object):
         self.splitter.addWidget(self.tabWidget)
 
         # Log Widget
-        self.logTextBrowser = log_widget.QPlainTextEditLogger(self.centralWidget)
+        self.logTextBrowser = QPlainTextEditLogger(self.centralWidget)
         self.logTextBrowser.widget.setObjectName("logTextBrowser")
         self.logTextBrowser.widget.setStyleSheet(
             """

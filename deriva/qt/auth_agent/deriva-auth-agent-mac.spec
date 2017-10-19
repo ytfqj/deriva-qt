@@ -3,7 +3,7 @@
 block_cipher = None
 
 from os import environ as env
-from deriva_qt import __version__
+from deriva.qt import __version__
 
 a = Analysis(['./__main__.py'],
              pathex=[''],
@@ -12,7 +12,7 @@ a = Analysis(['./__main__.py'],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
-             excludes=[],
+             excludes=['numpy','scipy','pandas'],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher)
