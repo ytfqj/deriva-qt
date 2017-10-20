@@ -107,7 +107,7 @@ class UploadWindow(QMainWindow):
 
     def enableControls(self):
         self.ui.actionUpload.setEnabled(self.canUpload())
-        self.ui.actionRescan.setEnabled(self.current_path is not None)
+        self.ui.actionRescan.setEnabled(self.current_path is not None and self.auth_window.authenticated())
         self.ui.actionCancel.setEnabled(False)
         self.ui.actionOptions.setEnabled(True)
         self.ui.actionLogin.setEnabled(not self.auth_window.authenticated())
@@ -306,6 +306,7 @@ class UploadWindow(QMainWindow):
             self.ui.actionLogout.setEnabled(True)
             self.ui.actionLogin.setEnabled(False)
             if self.current_path:
+                self.ui.actionRescan.setEnabled(True)
                 self.ui.actionUpload.setEnabled(True)
             self.updateStatus("Logged in.")
             self.updateConfig()
@@ -427,6 +428,7 @@ class UploadWindow(QMainWindow):
         self.auth_window.logout(delete_cookies=True)
         self.identity = None
         self.ui.actionUpload.setEnabled(False)
+        self.ui.actionRescan.setEnabled(False)
         self.ui.actionLogout.setEnabled(False)
         self.ui.actionLogin.setEnabled(True)
         self.updateStatus("Logged out.")
