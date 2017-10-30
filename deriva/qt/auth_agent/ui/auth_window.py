@@ -105,9 +105,9 @@ class AuthWindow(QMainWindow):
     def onTabChanged(self, index):
         host = self.ui.tabWidget.tabText(index)
         cur = self.ui.serverComboBox.currentIndex()
-        index = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
-        if (index != -1) and (index != cur):
-            self.ui.serverComboBox.setCurrentIndex(index)
+        ind = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
+        if (ind != -1) and (ind != cur):
+            self.ui.serverComboBox.setCurrentIndex(ind)
         widget = self.ui.tabWidget.widget(index)
         authenticated = False
         if isinstance(widget, AuthWidget):
@@ -115,6 +115,7 @@ class AuthWindow(QMainWindow):
                 authenticated = True
         if host and authenticated:
             self.statusBar().showMessage("Authenticated: %s" % host)
+            self.ui.actionShowToken.setEnabled(True)
         else:
             self.ui.actionShowToken.setEnabled(False)
             self.statusBar().clearMessage()
