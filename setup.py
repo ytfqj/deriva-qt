@@ -38,9 +38,6 @@ setup(
         'requests',
         'deriva.core',
         'deriva.transfer',
-        'PyQt5'],
-    install_requires=[
-        'setuptools',
         'PyQt5'
     ],
     license='GNU GPL 3.0',
