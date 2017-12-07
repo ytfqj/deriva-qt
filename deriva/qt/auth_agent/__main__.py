@@ -25,7 +25,6 @@ def main():
     QApplication.setStyle(QStyleFactory.create("Fusion"))
     app = QApplication(sys.argv)
     app.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
-    app.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
     sys.stderr.write("\n")
     cli = BaseCLI("DERIVA Authentication Agent",
                   "For more information see: https://github.com/informatics-isi-edu/deriva-qt", VERSION)
