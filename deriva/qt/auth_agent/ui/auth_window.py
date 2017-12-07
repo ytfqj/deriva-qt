@@ -242,6 +242,7 @@ class AuthWindow(QMainWindow):
                     widget.logout()
                     del widget
                 self.ui.tabWidget.removeTab(i)
+        self.updateSystrayTooltip()
 
     @pyqtSlot()
     def on_actionExit_triggered(self):
