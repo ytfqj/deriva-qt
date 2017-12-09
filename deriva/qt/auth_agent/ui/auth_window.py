@@ -255,18 +255,20 @@ class AuthWindow(QMainWindow):
     @pyqtSlot(QSystemTrayIcon.ActivationReason)
     def on_systemTrayIcon_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick or reason == QSystemTrayIcon.Trigger:
-            if self.isHidden():
+            if self.isHidden() or self.isMinimized():
                 self.show()
                 self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
                 self.activateWindow()
             else:
-                self.hide()
+                self.showMinimized()
+                if "win32" in sys.platform:
+                    self.hide()
 
     def changeEvent(self, event):
         if event.type() == QEvent.WindowStateChange:
-            if self.windowState() & Qt.WindowMinimized:
-                event.ignore()
-                self.hide()
+            if self.isMinimized():
+                if "win32" in sys.platform:
+                    self.hide()
                 title = self.window_title
                 msg = 'Running in the background.'
                 qtVersion = qVersion()
@@ -274,7 +276,6 @@ class AuthWindow(QMainWindow):
                     self.systemTrayIcon.showMessage(title, msg, self.window_icon)
                 else:
                     self.systemTrayIcon.showMessage(title, msg)
-                return
 
         super(AuthWindow, self).changeEvent(event)
 
