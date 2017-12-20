@@ -10,7 +10,7 @@ Graphical User Interface tools for DERIVA using PyQt
 1. Install dependency packages 
 
 ```
-dnf install python3-qt5 python3-qt5-webengine pyhon3-devel 
+dnf install python3-qt5 python3-qt5-webengine python3-devel 
 ```
 
 2. install deriva-py and deriva-qt from source
