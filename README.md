@@ -22,10 +22,10 @@ git clone https://github.com/informatics-isi-edu/deriva-qt
 
 ```
 cd ~/git/deriva-py
-pip3 install –upgrade . 
+pip3 install . 
 
 cd ~/git/deriva-qt
-pip3 install –upgrade . 
+pip3 install . 
 ```
 
 ## User Instructions 
