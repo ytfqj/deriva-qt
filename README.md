@@ -16,10 +16,7 @@ dnf install python3-qt5 python3-qt5-webengine pyhon3-devel
 2. install deriva-py and deriva-qt from source
 
 ```
-cd ~/git/deriva-py
 pip3 install --upgrade git+https://github.com/informatics-isi-edu/deriva-py.git
-
-cd ~/git/deriva-qt
 pip3 install --upgrade git+https://github.com/informatics-isi-edu/deriva-qt.git
 ```
 
