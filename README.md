@@ -7,7 +7,9 @@ Graphical User Interface tools for DERIVA using PyQt
 ### Fedora 
 1. Install dependency packages
 
-`dnf install python3-qt5 python3-qt5-webengine`
+```
+dnf install python3-qt5 python3-qt5-webengine
+```
 
 2. clone deriva-py and deriva-qt
 
@@ -31,7 +33,9 @@ pip3 install –upgrade .
 
 At the command-line, execute deriva-auth to set up credentials with deriva server
 
-`deriva-auth`
+```
+deriva-auth
+```
 
 
 Links:
