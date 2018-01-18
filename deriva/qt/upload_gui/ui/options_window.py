@@ -1,4 +1,5 @@
 import os
+import re
 
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, \
@@ -310,7 +311,8 @@ class ServerDialog(QDialog):
         layout.addWidget(self.buttonBox)
 
     def validate(self):
-        hostname = self.hostnameTextBox.text()
+        host = self.hostnameTextBox.text()
+        hostname = re.sub("(?i)^.*https?://", '', host)
         if not hostname:
             warningMessageBox(self.parent(), "Please enter a valid hostname:",
                               "For example: \'www.host.com\' or \'localhost\', etc.")

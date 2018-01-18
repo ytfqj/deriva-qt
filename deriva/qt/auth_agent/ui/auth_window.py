@@ -1,5 +1,6 @@
 import logging
 import sys
+import re
 
 from pkg_resources import parse_version
 from PyQt5.QtCore import Qt, QEvent, QMetaObject, pyqtSlot, qVersion
@@ -142,7 +143,8 @@ class AuthWindow(QMainWindow):
 
     @pyqtSlot()
     def on_actionAdd_triggered(self):
-        host = self.ui.serverComboBox.currentText()
+        hostname = self.ui.serverComboBox.currentText()
+        host = re.sub("(?i)^.*https?://", '', hostname)
         if not host:
             return
         index = self.ui.serverComboBox.findText(host, Qt.MatchFixedString)
