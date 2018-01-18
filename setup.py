@@ -36,9 +36,10 @@ setup(
         'sys',
         'logging',
         'requests',
-        'deriva.core',
-        'deriva.transfer',
         'PyQt5'
+    ],
+    install_requires=[
+        'deriva>=0.4.1',
     ],
     license='GNU GPL 3.0',
     classifiers=[
