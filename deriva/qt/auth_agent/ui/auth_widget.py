@@ -133,8 +133,14 @@ class AuthWidget(QWebEngineView):
         resp = self._session.put(self.auth_url.toString() + "/authn/session")
         seconds_remaining = self.authn_session['seconds_remaining']
         self.authn_expires = time.time() + seconds_remaining + 1
-        logging.debug("webauthn session:\n%s\n", resp.json())
-        logging.info("Session refreshed for: %s" % self.auth_url.host())
+        if resp.ok:
+            logging.debug("webauthn session:\n%s\n", resp.json())
+            logging.info("Session refreshed for: %s" % self.auth_url.host())
+        else:
+            logging.warning(
+                "Unable to refresh session for: %s. Server responded: %s" %
+                (self.auth_url.host(),
+                 str.format("%s %s: %s" % (resp.status_code, resp.reason, resp.content.decode()))))
 
     def _onSessionContent(self, content):
         try:

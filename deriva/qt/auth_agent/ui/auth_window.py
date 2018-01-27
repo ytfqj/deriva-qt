@@ -154,7 +154,9 @@ class AuthWindow(QMainWindow):
                     self.ui.tabWidget.setCurrentIndex(i)
                     return
 
-        server = {"host": host, "protocol": "https"}
+        server = self.ui.serverComboBox.itemData(index, Qt.UserRole)
+        if not server:
+            server = {"host": host, "protocol": "https"}
         if index == -1:
             self.ui.serverComboBox.addItem(host, server)
         else:
