@@ -39,7 +39,7 @@ setup(
         'PyQt5'
     ],
     install_requires=[
-        'deriva>=0.4.1',
+        'deriva>=0.4.2',
     ],
     license='GNU GPL 3.0',
     classifiers=[

@@ -690,7 +690,6 @@ class UploadWindowUI(object):
         self.logTextBrowser.widget.log_update_signal.connect(MainWin.updateLog)
         self.logTextBrowser.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
         logging.getLogger().addHandler(self.logTextBrowser)
-        logging.getLogger().setLevel(logging.INFO)
 
     # finalize UI setup
         QMetaObject.connectSlotsByName(MainWin)
