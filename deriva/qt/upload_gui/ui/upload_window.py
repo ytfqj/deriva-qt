@@ -238,7 +238,7 @@ class UploadWindow(QMainWindow):
 
     def checkVersion(self):
         if not self.uploader.isVersionCompatible():
-            self.updateStatus("Version incompatibility detected", "Current version: [%s], required version(s): %s." % (
+            self.updateStatus("Version incompatibility detected", "Current version: %s, required version: %s" % (
                 self.uploader.getVersion(), self.uploader.getVersionCompatibility()))
             self.disableControls()
             self.ui.actionExit.setEnabled(True)
@@ -253,10 +253,11 @@ class UploadWindow(QMainWindow):
         qApp.restoreOverrideCursor()
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Update Required")
-        msg.setText("Launch browser and download new version?")
+        msg.setWindowTitle("Version incompatibility detected!")
+        msg.setText("Current version: %s\nRequired version: %s\n\nLaunch browser and download required version?"
+                    % (self.uploader.getVersion(), self.uploader.getVersionCompatibility()))
         msg.setInformativeText("Selecting \"Yes\" will launch an external web browser which will take you to a "
-                               "download page where you can get the latest version of this software.")
+                               "download page where you can get the required version of this software.")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         ret = msg.exec_()
         if ret == QMessageBox.Yes:

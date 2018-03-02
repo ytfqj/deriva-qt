@@ -246,6 +246,7 @@ class OptionsDialog(QDialog):
                 qApp.setOverrideCursor(Qt.WaitCursor)
                 uploader.initialize(cleanup=False)
                 qApp.restoreOverrideCursor()
+                parent.checkVersion()
         del dialog
 
 
