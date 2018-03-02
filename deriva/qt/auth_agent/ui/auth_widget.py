@@ -3,6 +3,7 @@ import json
 import logging
 import requests
 import time
+import platform
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from PyQt5.QtCore import Qt, QTimer, QUrl
@@ -11,6 +12,7 @@ from PyQt5.QtNetwork import QNetworkCookie
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
 from deriva.core import read_config, read_credential, write_credential, format_exception, DEFAULT_SESSION_CONFIG, \
     DEFAULT_CREDENTIAL
+from deriva.qt import __version__ as VERSION
 
 DEFAULT_CONFIG = {
   "servers": []
@@ -52,7 +54,9 @@ class AuthWidget(QWebEngineView):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._onTimerFired)
         self.configure(config, credential_file)
-
+        info = "%s v%s [Python %s, %s]" % (
+            self.__class__.__name__, VERSION, platform.python_version(), platform.platform(aliased=True))
+        logging.info("Initializing authorization provider: %s" % info)
         # logging.getLogger().setLevel(logging.TRACE)
 
     def configure(self, config, credential_file):
