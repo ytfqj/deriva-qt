@@ -242,8 +242,10 @@ class UploadWindow(QMainWindow):
                 self.uploader.getVersion(), self.uploader.getVersionCompatibility()))
             self.disableControls()
             self.ui.actionExit.setEnabled(True)
+            self.ui.actionOptions.setEnabled(True)
             self.updateConfirmation()
             return False
+        self.resetUI("Ready...")
         return True
 
     def updateConfirmation(self):
@@ -453,7 +455,7 @@ class UploadWindow(QMainWindow):
         qApp.closeAllWindows()
 
     def logoutConfirmation(self):
-        if self.auth_window and not self.auth_window.cookie_persistence:
+        if self.auth_window and (not self.auth_window.authenticated() or not self.auth_window.cookie_persistence):
             return
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
