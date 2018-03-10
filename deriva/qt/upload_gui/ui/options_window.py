@@ -1,6 +1,6 @@
 import os
 import re
-
+import logging
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog, \
     QGroupBox, QRadioButton, QComboBox, QCheckBox, QMessageBox, QDialogButtonBox, qApp
@@ -96,6 +96,15 @@ class OptionsDialog(QDialog):
         self.uploadLayout.addWidget(self.uploadDataButton)
         self.uploadGroupBox.setLayout(self.uploadLayout)
         layout.addWidget(self.uploadGroupBox)
+
+        # Miscellaneous
+        self.miscGroupBox = QGroupBox("Miscellaneous:", self)
+        self.miscLayout = QHBoxLayout()
+        self.debugCheckBox = QCheckBox("Debug logging")
+        self.debugCheckBox.setChecked(True if logging.getLogger().getEffectiveLevel() == logging.DEBUG else False)
+        self.miscLayout.addWidget(self.debugCheckBox)
+        self.miscGroupBox.setLayout(self.miscLayout)
+        layout.addWidget(self.miscGroupBox)
 
         # Button Box
         self.buttonBox = QDialogButtonBox(parent)
@@ -235,6 +244,8 @@ class OptionsDialog(QDialog):
         dialog = OptionsDialog(parent)
         ret = dialog.exec_()
         if QDialog.Accepted == ret:
+            debug = dialog.debugCheckBox.isChecked()
+            logging.getLogger().setLevel(logging.DEBUG if debug else logging.INFO)
             setServers = getattr(uploader, "setServers", None)
             if callable(setServers):
                 setServers(dialog.getServers())
