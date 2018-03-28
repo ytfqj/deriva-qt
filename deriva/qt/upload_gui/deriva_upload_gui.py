@@ -68,11 +68,11 @@ class DerivaUploadGUI(BaseCLI):
         if self.cookie_persistence:
             self.cookie_persistence = not args.no_persistence
 
-        self.upload_gui(self.uploader,
-                        config_file=args.config_file,
-                        credential_file=args.credential_file,
-                        hostname=args.host,
-                        window_title="%s %s" % (self.parser.description, self.uploader.getVersion()),
-                        window_icon=self.window_icon,
-                        cookie_persistence=self.cookie_persistence)
-        return 0
+        ret = self.upload_gui(self.uploader,
+                              config_file=args.config_file,
+                              credential_file=args.credential_file,
+                              hostname=args.host,
+                              window_title="%s %s" % (self.parser.description, self.uploader.getVersion()),
+                              window_icon=self.window_icon,
+                              cookie_persistence=self.cookie_persistence)
+        return ret

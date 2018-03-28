@@ -9,7 +9,7 @@ INFO = "For more information see: https://github.com/informatics-isi-edu/deriva-
 
 def main():
     gui = DerivaUploadGUI(GenericUploader, DESC, INFO)
-    sys.exit(gui.main())
+    return gui.main()
 
 
 if __name__ == '__main__':

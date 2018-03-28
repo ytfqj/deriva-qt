@@ -258,12 +258,14 @@ class UploadWindow(QMainWindow):
         msg.setWindowTitle("Version incompatibility detected!")
         msg.setText("Current version: %s\nRequired version: %s\n\nLaunch browser and download required version?"
                     % (self.uploader.getVersion(), self.uploader.getVersionCompatibility()))
-        msg.setInformativeText("Selecting \"Yes\" will launch an external web browser which will take you to a "
-                               "download page where you can get the required version of this software.")
+        msg.setInformativeText(
+            "Selecting \"Yes\" will close the application and launch an external web browser which will take you to a "
+            "download page where you can get the required version of this software.")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         ret = msg.exec_()
         if ret == QMessageBox.Yes:
             webbrowser.open_new(url)
+            self.deleteLater()
 
     def updateConfig(self):
         qApp.setOverrideCursor(Qt.WaitCursor)
