@@ -5,10 +5,10 @@ Graphical User Interface tools for DERIVA using PyQt
 
 ## Installation
 ### Windows / MacOS
-Windows and MacOS users can download prebuilt bundles which include all dependencies [here](https://github.com/informatics-isi-edu/deriva-qt/releases).  Download the appropriate file for your OS and extract the archive. Windows users can run the extracted `exe` file directly, while Mac users can copy the extracted application folder and then context (right) click and select `Open`.
+Windows and MacOS users can download prebuilt bundles which include all dependencies [here](https://github.com/informatics-isi-edu/deriva-qt/releases). Download the appropriate file for your OS and extract the archive. Windows users can run the extracted `exe` file directly, while Mac users can copy the extracted application folder and then context (right) click and select `Open`.
 
+## Install from source
 ### Fedora
-### Install from source
 
 1. Install dependency packages 
 
@@ -22,6 +22,9 @@ dnf install python3-qt5 python3-qt5-webengine python3-devel
 pip3 install --upgrade git+https://github.com/informatics-isi-edu/deriva-py.git
 pip3 install --upgrade git+https://github.com/informatics-isi-edu/deriva-qt.git
 ```
+
+### Windows 10 
+
 
 ## User Instructions 
 ### deriva-auth
