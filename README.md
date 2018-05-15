@@ -27,7 +27,7 @@ pip3 install --upgrade git+https://github.com/informatics-isi-edu/deriva-qt.git
 1. Install qt5
  first download qt5, then exptract the zip file and install following the install wizard
 
- here is a url(https://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.10.1/PyQt5_gpl-5.10.1.zip/download) for qt5 download
+ here is [a url](https://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.10.1/PyQt5_gpl-5.10.1.zip/download) for qt5 download
 
 2. install deriva-py and deriva-qt from source
 
