@@ -4,6 +4,9 @@ Graphical User Interface tools for DERIVA using PyQt
 * File Uploader
 
 ## Installation
+### Windows / MacOS
+Windows and MacOS users can download prebuilt bundles which include all dependencies [here](https://github.com/informatics-isi-edu/deriva-qt/releases).  Download the appropriate file for your OS and extract the archive. Windows users can run the extracted `exe` file directly, while Mac users can copy the extracted application folder and then context (right) click and select `Open`.
+
 ### Fedora
 ### Install from source
 
